@@ -9,8 +9,6 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "@colyseus/schema": "^4.0.19",
-    "@colyseus/ws-transport": "^0.17.11",
     "@hookform/resolvers": "^3.9.1",
     "@radix-ui/react-accordion": "1.2.12",
     "@radix-ui/react-alert-dialog": "1.1.15",
@@ -44,12 +42,9 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "1.1.1",
-    "colyseus": "^0.17.8",
     "colyseus.js": "^0.15.28",
-    "cors": "^2.8.6",
     "date-fns": "4.1.0",
     "embla-carousel-react": "8.6.0",
-    "express": "^5.2.1",
     "input-otp": "1.4.2",
     "lucide-react": "^0.564.0",
     "next": "16.2.0",
