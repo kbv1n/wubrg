@@ -97,10 +97,12 @@ export class GameRoom extends Room<GameState> {
       // Reassign host if needed
       if (this.state.hostId === client.sessionId && this.state.players.size > 0) {
         const newHost = this.state.playerOrder[0]
-        this.state.hostId = newHost
-        const newHostPlayer = this.state.players.get(newHost)
-        if (newHostPlayer) {
-          this.addLog(`${newHostPlayer.name} is now the host`)
+        if (newHost) {
+          this.state.hostId = newHost
+          const newHostPlayer = this.state.players.get(newHost)
+          if (newHostPlayer) {
+            this.addLog(`${newHostPlayer.name} is now the host`)
+          }
         }
       }
     } else {
@@ -257,9 +259,9 @@ export class GameRoom extends Room<GameState> {
     const cards = [...player.library]
     player.library.clear()
     for (const card of shuffle(cards)) {
-      player.library.push(card)
+      if (card) player.library.push(card)
     }
-    
+
     this.addLog(`${player.name} loaded deck (${player.library.length + player.commandZone.length} cards)`)
   }
   
@@ -289,7 +291,8 @@ export class GameRoom extends Room<GameState> {
     }
     
     this.addLog("Game started!")
-    const firstPlayer = this.state.players.get(this.state.playerOrder[0])
+    const firstPlayerId = this.state.playerOrder[0]
+    const firstPlayer = firstPlayerId ? this.state.players.get(firstPlayerId) : undefined
     if (firstPlayer) {
       this.addLog(`${firstPlayer.name}'s turn`)
     }
@@ -305,7 +308,7 @@ export class GameRoom extends Room<GameState> {
       const zone = player[zoneName] as ArraySchema<CardState>
       const idx = zone.toArray().findIndex(c => c.iid === iid)
       if (idx >= 0) {
-        card = zone[idx]
+        card = zone[idx] ?? null
         fromZone = zoneName
         zone.splice(idx, 1)
         break
@@ -391,7 +394,7 @@ export class GameRoom extends Room<GameState> {
     const cards = [...player.library]
     player.library.clear()
     for (const card of shuffle(cards)) {
-      player.library.push(card)
+      if (card) player.library.push(card)
     }
     this.addLog(`${player.name} shuffled their library`)
   }
@@ -404,17 +407,19 @@ export class GameRoom extends Room<GameState> {
   }
   
   passTurn() {
-    const currentPlayer = this.state.players.get(this.state.playerOrder[this.state.turn])
-    
+    const currentPlayerId = this.state.playerOrder[this.state.turn]
+    const currentPlayer = currentPlayerId ? this.state.players.get(currentPlayerId) : undefined
+
     // Move to next player
     this.state.turn = (this.state.turn + 1) % this.state.playerOrder.length
-    
+
     // Check for new round
     if (this.state.turn === 0) {
       this.state.round++
     }
-    
-    const nextPlayer = this.state.players.get(this.state.playerOrder[this.state.turn])
+
+    const nextPlayerId = this.state.playerOrder[this.state.turn]
+    const nextPlayer = nextPlayerId ? this.state.players.get(nextPlayerId) : undefined
     if (currentPlayer && nextPlayer) {
       this.addLog(`${currentPlayer.name} passed turn to ${nextPlayer.name}`)
     }
