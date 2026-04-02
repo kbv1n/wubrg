@@ -162,6 +162,13 @@ function mapSchemaToMap(mapSchema: any): Map<string, { dealt: number }> {
   return result
 }
 
+function arraySchemaToStrings(arraySchema: any): string[] {
+  if (!arraySchema) return []
+  const result: string[] = []
+  arraySchema.forEach((item: any) => result.push(item))
+  return result
+}
+
 // Convert full game state from schema
 export function schemaToGameState(state: any): GameState {
   return {
@@ -172,8 +179,8 @@ export function schemaToGameState(state: any): GameState {
     turn: state.turn,
     round: state.round,
     players: schemaToPlayers(state.players),
-    takenColors: state.takenColors ? [...state.takenColors] : [],
-    log: state.log ? [...state.log] : [],
-    playerOrder: state.playerOrder ? [...state.playerOrder] : [],
+    takenColors: arraySchemaToStrings(state.takenColors),
+    log: arraySchemaToStrings(state.log),
+    playerOrder: arraySchemaToStrings(state.playerOrder),
   }
 }
