@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, type RefObject } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { cn } from '@/lib/utils'
 import type { Player, CardInstance } from '@/lib/game-types'
 import { CardToken } from './card-token'
@@ -28,7 +28,7 @@ interface PlayerMatProps {
   onHandCardMD: (e: React.MouseEvent, iid: string) => void
   isHandDragOver: boolean
   matRef: (el: HTMLDivElement | null) => void
-  outerScrollRef: RefObject<HTMLDivElement | null>
+  outerScrollRef: { current: HTMLDivElement | null }
   onZoomWithScroll: (zoom: number, mx: number, my: number) => void
 }
 
@@ -283,7 +283,7 @@ export function PlayerMat({
 
       {/* Battlefield */}
       <div
-        ref={outerScrollRef as React.RefObject<HTMLDivElement>}
+        ref={(el) => { outerScrollRef.current = el }}
         className={cn(
           'flex-1 overflow-hidden z-1 relative',
           isPanning ? 'cursor-grabbing' : spaceDown ? 'cursor-grab' : 'cursor-default'

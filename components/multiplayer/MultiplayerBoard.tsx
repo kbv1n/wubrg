@@ -150,7 +150,7 @@ export function MultiplayerBoard({ mpState, localPlayerId, onLeave }: Props) {
   const [previewScale, setPreviewScale] = useState(1)
 
   const matRefs = useRef<Record<number, HTMLDivElement | null>>({})
-  const outerRefs = useRef<Record<number, React.RefObject<HTMLDivElement | null>>>({})
+  const outerRefs = useRef<Record<number, { current: HTMLDivElement | null }>>({})
   const handDragRef = useRef<{ pid: number; iid: string } | null>(null)
   const dragRef = useRef<boolean | null>(null)
   const fetchedRef = useRef<Set<string>>(new Set())
@@ -355,10 +355,14 @@ export function MultiplayerBoard({ mpState, localPlayerId, onLeave }: Props) {
     setCtx(null)
   }
 
-  const makePlayerMatProps = (p: Player, isMain: boolean) => {
+  // Ensure outerRefs entry exists for all players before rendering
+  players.forEach(p => {
     if (!outerRefs.current[p.pid]) {
-      outerRefs.current[p.pid] = React.createRef<HTMLDivElement | null>()
+      outerRefs.current[p.pid] = { current: null }
     }
+  })
+
+  const makePlayerMatProps = (p: Player, isMain: boolean) => {
     return {
       key: p.pid,
       player: p,

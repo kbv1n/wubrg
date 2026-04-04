@@ -97,7 +97,7 @@ export default function AstralMagicGame() {
   // Refs
   const matRefs = useRef<Record<number, HTMLDivElement | null>>({})
   const dragRef = useRef<boolean | null>(null)
-  const outerRefs = useRef<Record<number, React.RefObject<HTMLDivElement | null>>>({})
+  const outerRefs = useRef<Record<number, { current: HTMLDivElement | null }>>({})
 
   // Track mouse position for cursor-following card preview
   useEffect(() => {
