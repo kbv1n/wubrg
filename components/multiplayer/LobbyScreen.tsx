@@ -29,7 +29,7 @@ export function LobbyScreen({ gameState, localPlayerId, onLeave }: LobbyScreenPr
   const [showCustomInput, setShowCustomInput] = useState(false)
   const [copied, setCopied] = useState(false)
   const [showDeckInput, setShowDeckInput] = useState(true)
-  const [showPlaymatPicker, setShowPlaymatPicker] = useState(true)
+  const [showPlaymatPicker, setShowPlaymatPicker] = useState(false)
 
   const localPlayer = gameState.players.get(localPlayerId)
   const isHost = gameState.hostId === localPlayerId

@@ -259,17 +259,17 @@ export function ScryModal({ pid, n, cards, pal, onConfirm, onClose }: ScryModalP
         {remaining.length > 0 && (
           <div className="mb-4">
             <p className="text-xs text-muted-foreground mb-2">Select destination:</p>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-3 justify-center">
               {remaining.map((c) => (
-                <div key={c.iid} className="flex flex-col items-center gap-1">
-                  <div className="w-16 h-[88px] rounded overflow-hidden border border-border">
+                <div key={c.iid} className="flex flex-col items-center gap-2">
+                  <div className="w-40 h-[224px] rounded-lg overflow-hidden border border-border shadow-lg">
                     <CardImage src={c.img} alt={c.name} />
                   </div>
-                  <div className="flex gap-1">
+                  <div className="flex gap-2">
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-5 px-2 text-[10px] text-emerald-400"
+                      className="h-7 px-4 text-xs text-emerald-400 border-emerald-400/40"
                       onClick={() => moveToTop(c)}
                     >
                       Top
@@ -277,7 +277,7 @@ export function ScryModal({ pid, n, cards, pal, onConfirm, onClose }: ScryModalP
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-5 px-2 text-[10px] text-amber-400"
+                      className="h-7 px-4 text-xs text-amber-400 border-amber-400/40"
                       onClick={() => moveToBottom(c)}
                     >
                       Bottom
@@ -488,9 +488,10 @@ interface UISettingsModalProps {
   players: Player[]
   onPlaymat: (pid: number, field: 'url' | 'fit', value: string) => void
   onClose: () => void
+  onLeave?: () => void
 }
 
-export function UISettingsModal({ settings, onChange, players, onPlaymat, onClose }: UISettingsModalProps) {
+export function UISettingsModal({ settings, onChange, players, onPlaymat, onClose, onLeave }: UISettingsModalProps) {
   const [s, setS] = useState(settings)
 
   const update = (key: keyof typeof settings, val: number | boolean) => {
@@ -597,9 +598,20 @@ export function UISettingsModal({ settings, onChange, players, onPlaymat, onClos
           </div>
         )}
 
-        <Button className="w-full" onClick={onClose}>
-          Close
-        </Button>
+        <div className="flex flex-col gap-2">
+          <Button className="w-full" onClick={onClose}>
+            Close
+          </Button>
+          {onLeave && (
+            <Button
+              variant="destructive"
+              className="w-full"
+              onClick={onLeave}
+            >
+              Leave Game
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -618,7 +630,7 @@ export function Toast({ msg, onDone }: ToastProps) {
   })
 
   return (
-    <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[10000] animate-slide-up">
+    <div className="fixed top-14 right-4 z-[10000] animate-slide-up">
       <div className="px-6 py-3 bg-card/95 backdrop-blur-md border border-border rounded-full shadow-xl shadow-black/50">
         <span className="text-sm font-medium">{msg}</span>
       </div>

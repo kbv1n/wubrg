@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import type { Player, CardInstance, ZoneType } from '@/lib/game-types'
 import { PALETTES } from '@/lib/game-types'
 import { lookupCard, fetchScryfall } from '@/lib/game-data'
@@ -87,7 +87,6 @@ function convertToPlayers(
         graveyard: mp.graveyard.map(mpCardToInstance),
         exile: mp.exile.map(mpCardToInstance),
         command: mp.commandZone.map(mpCardToInstance),
-        manaPool: { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 },
         maxZ: 10,
         isDemo: false,
         missed: 0,
@@ -148,6 +147,7 @@ export function MultiplayerBoard({ mpState, localPlayerId, onLeave }: Props) {
   const [pans, setPans] = useState<Record<number, { x: number; y: number }>>({})
   const [handDragOver, setHandDragOver] = useState<number | null>(null)
   const [handGhost, setHandGhost] = useState<{ card: CardInstance; x: number; y: number } | null>(null)
+  const [previewScale, setPreviewScale] = useState(1)
 
   const matRefs = useRef<Record<number, HTMLDivElement | null>>({})
   const outerRefs = useRef<Record<number, React.RefObject<HTMLDivElement | null>>>({})
@@ -215,6 +215,8 @@ export function MultiplayerBoard({ mpState, localPlayerId, onLeave }: Props) {
 
   // --- Action handlers (send to Colyseus) ---
 
+  const handDockRef = useRef<HTMLDivElement | null>(null)
+
   const onCardMD = (e: React.MouseEvent, pid: number, iid: string) => {
     if (e.button !== 0 || !isLocal(pid)) return
     e.preventDefault()
@@ -244,6 +246,12 @@ export function MultiplayerBoard({ mpState, localPlayerId, onLeave }: Props) {
         if (card.tapped) GameActions.untapCard(iid)
         else GameActions.tapCard(iid)
       } else {
+        // Check if dropped over hand dock area (bottom 120px of viewport)
+        const viewH = window.innerHeight
+        if (ev.clientY > viewH - 120) {
+          GameActions.moveCard(iid, 'hand')
+          return
+        }
         const rect = matRefs.current[pid]?.getBoundingClientRect()
         if (rect) {
           const nx = Math.max(0, Math.min(90, scx + ((ev.clientX - sx) / rect.width) * 100))
@@ -349,7 +357,7 @@ export function MultiplayerBoard({ mpState, localPlayerId, onLeave }: Props) {
 
   const makePlayerMatProps = (p: Player, isMain: boolean) => {
     if (!outerRefs.current[p.pid]) {
-      outerRefs.current[p.pid] = { current: null }
+      outerRefs.current[p.pid] = React.createRef<HTMLDivElement | null>()
     }
     return {
       key: p.pid,
@@ -374,7 +382,7 @@ export function MultiplayerBoard({ mpState, localPlayerId, onLeave }: Props) {
         e.stopPropagation()
         setCtx({ x: e.clientX, y: e.clientY, pid: p.pid, iid, zone: zone as ZoneType })
       },
-      onHover: (c: CardInstance) => setHover(c),
+      onHover: (c: CardInstance) => { if (!c.faceDown) { setHover(c); setPreviewScale(1) } },
       onHL: () => setHover(null),
       onZone: (zone: string) => {
         if (isLocal(p.pid) && zone === 'library') {
@@ -400,6 +408,13 @@ export function MultiplayerBoard({ mpState, localPlayerId, onLeave }: Props) {
     <div
       onMouseDown={() => setCtx(null)}
       className="h-screen w-screen overflow-hidden bg-background flex flex-col select-none relative"
+      style={{
+        transform: `scale(${uiSettings.uiScale})`,
+        transformOrigin: 'top left',
+        width: `${100 / uiSettings.uiScale}%`,
+        height: `${100 / uiSettings.uiScale}vh`,
+        '--glass-opacity': uiSettings.glassOpacity,
+      } as React.CSSProperties}
     >
       {/* Player mats */}
       <div className="flex-1 flex flex-col gap-1 p-1 overflow-hidden min-h-0">
@@ -470,7 +485,7 @@ export function MultiplayerBoard({ mpState, localPlayerId, onLeave }: Props) {
       {/* Hover card preview */}
       {hover && (
         <div
-          className="fixed z-[9998] pointer-events-none animate-card-enter"
+          className="fixed z-[9998] animate-card-enter"
           style={{
             left: Math.min(
               hoverPos.x + 20,
@@ -483,9 +498,17 @@ export function MultiplayerBoard({ mpState, localPlayerId, onLeave }: Props) {
                 (typeof window !== 'undefined' ? window.innerHeight : 800) - 450
               )
             ),
+            pointerEvents: 'auto',
+          }}
+          onWheel={(e) => {
+            e.stopPropagation()
+            setPreviewScale(s => Math.max(0.5, Math.min(3, s + (e.deltaY > 0 ? -0.15 : 0.15))))
           }}
         >
-          <div className="w-52 rounded-xl overflow-hidden shadow-2xl ring-1 ring-white/20">
+          <div
+            className="w-52 rounded-xl overflow-hidden shadow-2xl ring-1 ring-white/20 origin-top-left transition-transform duration-100"
+            style={{ transform: `scale(${previewScale})` }}
+          >
             <CardImage src={hover.img} alt={hover.name} />
           </div>
           <div className="liquid-glass-readable mt-2 px-3 py-2.5 rounded-xl max-w-[220px]">
@@ -596,18 +619,27 @@ export function MultiplayerBoard({ mpState, localPlayerId, onLeave }: Props) {
           settings={uiSettings}
           onChange={setUISettings}
           players={players}
-          onPlaymat={() => {}}
+          onPlaymat={(_pid, field, val) => {
+            if (field === 'url') GameActions.setPlaymat(val)
+          }}
           onClose={() => setSettingsOpen(false)}
+          onLeave={onLeave}
         />
       )}
 
-      {/* Leave button */}
-      <button
-        onClick={onLeave}
-        className="fixed top-3 right-3 z-[9999] px-3 py-1.5 text-xs bg-secondary/80 text-foreground rounded-lg hover:bg-secondary border border-white/10"
-      >
-        Leave Game
-      </button>
+      {/* Hand drag ghost */}
+      {handGhost && (
+        <div
+          className="fixed pointer-events-none z-[10000] w-14 h-[78px] rounded overflow-hidden rotate-[-4deg] scale-105 ring-2 ring-primary shadow-xl"
+          style={{
+            left: handGhost.x - 28,
+            top: handGhost.y - 39,
+            opacity: 0.9
+          }}
+        >
+          <CardImage src={handGhost.card.img} alt={handGhost.card.name} />
+        </div>
+      )}
     </div>
   )
 }

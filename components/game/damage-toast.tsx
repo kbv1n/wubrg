@@ -74,7 +74,7 @@ export function DamageToastContainer({ toasts, onRemove }: DamageToastContainerP
   if (toasts.length === 0) return null
 
   return (
-    <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[9990] flex flex-col gap-2 pointer-events-none">
+    <div className="fixed top-20 right-4 z-[9990] flex flex-col gap-2 pointer-events-none">
       {toasts.map((t) => (
         <div key={t.id} className="pointer-events-auto">
           <DamageToast 

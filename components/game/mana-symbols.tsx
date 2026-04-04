@@ -1,29 +1,63 @@
 'use client'
 
 import { cn } from '@/lib/utils'
-import Image from 'next/image'
+import { useState, useEffect } from 'react'
 
-// Official MTG Mana Symbol URLs from MTG Wiki
-const MANA_SYMBOL_URLS: Record<string, string> = {
-  W: 'https://static.wikia.nocookie.net/mtgsalvation_gamepedia/images/8/8e/W.svg',
-  U: 'https://static.wikia.nocookie.net/mtgsalvation_gamepedia/images/9/9f/U.svg',
-  B: 'https://static.wikia.nocookie.net/mtgsalvation_gamepedia/images/2/2f/B.svg',
-  R: 'https://static.wikia.nocookie.net/mtgsalvation_gamepedia/images/8/87/R.svg',
-  G: 'https://static.wikia.nocookie.net/mtgsalvation_gamepedia/images/8/88/G.svg',
-  C: 'https://static.wikia.nocookie.net/mtgsalvation_gamepedia/images/1/1a/C.svg',
-  // Generic/colorless
-  '0': 'https://static.wikia.nocookie.net/mtgsalvation_gamepedia/images/0/0e/0.svg',
-  '1': 'https://static.wikia.nocookie.net/mtgsalvation_gamepedia/images/c/ca/1.svg',
-  '2': 'https://static.wikia.nocookie.net/mtgsalvation_gamepedia/images/4/42/2.svg',
-  '3': 'https://static.wikia.nocookie.net/mtgsalvation_gamepedia/images/0/00/3.svg',
-  '4': 'https://static.wikia.nocookie.net/mtgsalvation_gamepedia/images/1/1e/4.svg',
-  '5': 'https://static.wikia.nocookie.net/mtgsalvation_gamepedia/images/b/b3/5.svg',
-  '6': 'https://static.wikia.nocookie.net/mtgsalvation_gamepedia/images/d/d8/6.svg',
-  '7': 'https://static.wikia.nocookie.net/mtgsalvation_gamepedia/images/6/66/7.svg',
-  '8': 'https://static.wikia.nocookie.net/mtgsalvation_gamepedia/images/4/4c/8.svg',
-  '9': 'https://static.wikia.nocookie.net/mtgsalvation_gamepedia/images/3/33/9.svg',
-  '10': 'https://static.wikia.nocookie.net/mtgsalvation_gamepedia/images/6/62/10.svg',
-  X: 'https://static.wikia.nocookie.net/mtgsalvation_gamepedia/images/d/d1/X.svg',
+// Scryfall symbology cache — populated on first use
+let symbolCache: Map<string, string> | null = null
+let fetchPromise: Promise<void> | null = null
+
+async function loadSymbology(): Promise<Map<string, string>> {
+  if (symbolCache) return symbolCache
+
+  // Check localStorage cache first (24h TTL)
+  if (typeof window !== 'undefined') {
+    try {
+      const cached = localStorage.getItem('scryfall_symbology')
+      if (cached) {
+        const { data, ts } = JSON.parse(cached)
+        if (Date.now() - ts < 24 * 60 * 60 * 1000) {
+          symbolCache = new Map(data)
+          return symbolCache
+        }
+      }
+    } catch { /* ignore */ }
+  }
+
+  if (!fetchPromise) {
+    fetchPromise = (async () => {
+      try {
+        const res = await fetch('https://api.scryfall.com/symbology')
+        const json = await res.json()
+        const map = new Map<string, string>()
+        if (json.data) {
+          for (const sym of json.data) {
+            // sym.symbol is like "{W}", "{T}", "{W/U}", etc.
+            // sym.svg_uri is the official Scryfall SVG
+            const key = sym.symbol?.replace(/^\{|\}$/g, '') || ''
+            if (key && sym.svg_uri) {
+              map.set(key, sym.svg_uri)
+            }
+          }
+        }
+        symbolCache = map
+        // Cache in localStorage
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem('scryfall_symbology', JSON.stringify({
+              data: Array.from(map.entries()),
+              ts: Date.now()
+            }))
+          } catch { /* quota exceeded, ignore */ }
+        }
+      } catch {
+        // Fallback: empty map, will use colored circles
+        symbolCache = new Map()
+      }
+    })()
+  }
+  await fetchPromise
+  return symbolCache!
 }
 
 // Fallback colors for rendering without images
@@ -34,6 +68,10 @@ const MANA_COLORS: Record<string, string> = {
   R: '#D3202A',
   G: '#00733E',
   C: '#CAC5C0',
+  T: '#888888',
+  Q: '#888888',
+  E: '#db8f27',
+  S: '#b0d0e8',
 }
 
 interface ManaSymbolsProps {
@@ -55,13 +93,13 @@ export function OracleText({ text, className, symbolSize = 14 }: OracleTextProps
 
   // Split text by mana symbols, keeping the delimiters
   const parts = text.split(/(\{[^}]+\})/g)
-  
+
   return (
     <span className={cn('inline', className)}>
       {parts.map((part, i) => {
         // Check if this part is a mana symbol
         if (part.match(/^\{[^}]+\}$/)) {
-          return <ManaSymbols key={i} cost={part} size={symbolSize} useImages={false} className="inline-flex mx-0.5 align-middle" />
+          return <ManaSymbols key={i} cost={part} size={symbolSize} useImages={true} className="inline-flex mx-0.5 align-middle" />
         }
         return <span key={i}>{part}</span>
       })}
@@ -71,6 +109,14 @@ export function OracleText({ text, className, symbolSize = 14 }: OracleTextProps
 
 export function ManaSymbols({ cost, size = 18, className, useImages = true }: ManaSymbolsProps) {
   if (!cost) return null
+
+  const [svgMap, setSvgMap] = useState<Map<string, string> | null>(symbolCache)
+
+  useEffect(() => {
+    if (!svgMap) {
+      loadSymbology().then(map => setSvgMap(map))
+    }
+  }, [svgMap])
 
   const symbols: string[] = []
   const re = /\{([^}]+)\}/g
@@ -85,27 +131,27 @@ export function ManaSymbols({ cost, size = 18, className, useImages = true }: Ma
   return (
     <span className={cn('inline-flex items-center gap-0.5 flex-wrap', className)}>
       {symbols.map((s, i) => {
-        const symbolUrl = MANA_SYMBOL_URLS[s]
-        
-        if (useImages && symbolUrl) {
+        const svgUri = svgMap?.get(s)
+
+        if (useImages && svgUri) {
           return (
-            <Image
+            <img
               key={i}
-              src={symbolUrl}
-              alt={s}
+              src={svgUri}
+              alt={`{${s}}`}
               width={size}
               height={size}
               className="rounded-full"
-              unoptimized
+              draggable={false}
             />
           )
         }
-        
+
         // Fallback to colored circles
         const isNum = /^\d+$/.test(s)
         const bg = isNum ? '#888888' : (MANA_COLORS[s] || MANA_COLORS[s[0]] || '#888888')
         const isLight = s === 'W' || isNum
-        
+
         return (
           <span
             key={i}
@@ -121,7 +167,7 @@ export function ManaSymbols({ cost, size = 18, className, useImages = true }: Ma
               color: isLight ? '#1a1a1a' : '#fff',
             }}
           >
-            {(isNum || s === 'X' || s === 'Y' || s === 'Z') ? s : ''}
+            {(isNum || ['X', 'Y', 'Z', 'T', 'Q', 'E', 'S'].includes(s)) ? s : ''}
           </span>
         )
       })}

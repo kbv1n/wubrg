@@ -56,7 +56,6 @@ export interface Player {
   graveyard: CardInstance[]
   exile: CardInstance[]
   command: CardInstance[]
-  manaPool: Record<string, number>
   maxZ: number
   isDemo: boolean
   missed: number
@@ -99,13 +98,3 @@ export const COUNTER_TYPES = [
   '+1/+1', '-1/-1', 'Loyalty', 'Charge', 'Poison', '+2/+2', 'Oil', 'Shield', 'Lore'
 ]
 
-// Mana colors
-export const MANA_COLORS: Record<string, string> = {
-  W: '#f3f0e0',
-  U: '#1a6bb5',
-  B: '#26262a',
-  R: '#d7360f',
-  G: '#186a45',
-  C: '#8b94a0',
-  X: '#9b59b6'
-}

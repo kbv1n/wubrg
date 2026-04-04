@@ -521,7 +521,7 @@ export class GameRoom extends Room<GameState> {
     }
 
     if (fromZone !== toZone) {
-      this.addLog(`${player.name}: ${card.cardId} -> ${toZone}`)
+      this.addLog(`${player.name} moved ${card.cardId} from ${fromZone} to ${toZone}`)
     }
   }
 
@@ -529,6 +529,7 @@ export class GameRoom extends Room<GameState> {
     const card = player.battlefield.find(c => c.iid === iid)
     if (card) {
       card.tapped = tapped
+      this.addLog(`${player.name} ${tapped ? 'tapped' : 'untapped'} ${card.cardId}`)
     }
   }
 
@@ -539,6 +540,7 @@ export class GameRoom extends Room<GameState> {
       const card = zone.find(c => c.iid === iid)
       if (card) {
         card.faceDown = !card.faceDown
+        this.addLog(`${player.name} flipped ${card.cardId} face ${card.faceDown ? 'down' : 'up'}`)
         return
       }
     }
@@ -548,6 +550,7 @@ export class GameRoom extends Room<GameState> {
     const card = player.battlefield.find(c => c.iid === iid)
     if (card) {
       card.counters = Math.max(0, card.counters + delta)
+      this.addLog(`${player.name} ${delta > 0 ? 'added' : 'removed'} counter on ${card.cardId} (${card.counters})`)
     }
   }
 
