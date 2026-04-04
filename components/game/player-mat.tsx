@@ -19,6 +19,7 @@ interface PlayerMatProps {
   pan: { x: number; y: number }
   onPan: (pan: { x: number; y: number }) => void
   onResetView: () => void
+  cardScale: number
   onLife: (delta: number) => void
   onCardMD: (e: React.MouseEvent, iid: string) => void
   onCardRC: (e: React.MouseEvent, iid: string, zone: string) => void
@@ -41,6 +42,7 @@ export function PlayerMat({
   pan,
   onPan,
   onResetView,
+  cardScale,
   onLife,
   onCardMD,
   onCardRC,
@@ -90,24 +92,16 @@ export function PlayerMat({
     return 1
   }
 
-  // Use native wheel listener with passive:false so preventDefault() works for zoom
-  const zoomRef = useRef(zoom)
-  zoomRef.current = zoom
-  useEffect(() => {
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault()
     const el = outerScrollRef?.current
-    if (!el) return
-    const handleWheel = (e: WheelEvent) => {
-      e.preventDefault()
-      const rect = el.getBoundingClientRect()
-      const mx = e.clientX - rect.left
-      const my = e.clientY - rect.top
-      const delta = e.deltaY > 0 ? -0.1 : 0.1
-      const newZoom = Math.max(0.15, Math.min(4.0, zoomRef.current + delta))
-      onZoomWithScroll(newZoom, mx, my)
-    }
-    el.addEventListener('wheel', handleWheel, { passive: false })
-    return () => el.removeEventListener('wheel', handleWheel)
-  }, [outerScrollRef, onZoomWithScroll])
+    const rect = el?.getBoundingClientRect() || { left: 0, top: 0 }
+    const mx = e.clientX - rect.left
+    const my = e.clientY - rect.top
+    const delta = e.deltaY > 0 ? -0.1 : 0.1
+    const newZoom = Math.max(0.15, Math.min(4.0, zoom + delta))
+    onZoomWithScroll(newZoom, mx, my)
+  }
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button === 1 || (e.button === 0 && spaceDown)) {
@@ -288,6 +282,7 @@ export function PlayerMat({
           'flex-1 overflow-hidden z-1 relative',
           isPanning ? 'cursor-grabbing' : spaceDown ? 'cursor-grab' : 'cursor-default'
         )}
+        onWheel={handleWheel}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -316,7 +311,7 @@ export function PlayerMat({
             <CardToken
               key={card.iid}
               card={card}
-              scale={1}
+              scale={cardScale}
               onMouseDown={(e) => onCardMD(e, card.iid)}
               onContextMenu={(e) => onCardRC(e, card.iid, 'battlefield')}
               onMouseEnter={() => onHover(card)}
@@ -406,9 +401,9 @@ export function PlayerMat({
         </button>
       )}
 
-      {/* Dock-style Hand - toggleable, with dynamic compression for 7+ cards */}
+      {/* Dock-style Hand - 3x larger, toggleable */}
       {isMain && hand.length > 0 && handVisible && (
-        <div
+        <div 
           className={cn(
             "absolute bottom-0 left-0 right-0 z-20",
             "flex justify-center items-end",
@@ -416,20 +411,13 @@ export function PlayerMat({
             "animate-slide-up"
           )}
         >
-          <div className="dock-hand" style={{
-            // Compress card spacing when hand is large to prevent overflow
-            gap: hand.length > 6 ? `${Math.max(2, 12 - hand.length)}px` : undefined,
-          }}>
+          <div className="dock-hand">
             {!isLocal ? (
               hand.map((_, i) => (
-                <div
-                  key={i}
-                  className="dock-card rounded-xl overflow-hidden opacity-60"
-                  style={{
-                    '--dock-scale': 1,
-                    width: hand.length > 8 ? `${Math.max(70, 126 - (hand.length - 8) * 8)}px` : '126px',
-                    height: hand.length > 8 ? `${Math.max(98, 176 - (hand.length - 8) * 12)}px` : '176px',
-                  } as React.CSSProperties}
+                <div 
+                  key={i} 
+                  className="dock-card w-[126px] h-[176px] rounded-xl overflow-hidden opacity-60"
+                  style={{ '--dock-scale': 1 } as React.CSSProperties}
                 >
                   <CardBack />
                 </div>
@@ -438,33 +426,26 @@ export function PlayerMat({
               hand.map((c, idx) => {
                 const scale = getDockScale(idx)
                 const isHovered = hoverIdx === idx
-                // Dynamically reduce card size when holding many cards
-                const cardW = hand.length > 8 ? Math.max(70, 126 - (hand.length - 8) * 8) : 126
-                const cardH = hand.length > 8 ? Math.max(98, 176 - (hand.length - 8) * 12) : 176
                 return (
                   <div
                     key={c.iid}
                     className="dock-card cursor-grab select-none"
-                    style={{
+                    style={{ 
                       '--dock-scale': scale,
-                      zIndex: isHovered ? 100 : 50 - Math.abs(idx - (hand.length / 2)),
-                      // Negative margin for overlap when many cards
-                      marginLeft: idx > 0 && hand.length > 6 ? `${Math.max(-30, -((hand.length - 6) * 5))}px` : undefined,
+                      zIndex: isHovered ? 100 : 50 - Math.abs(idx - (hand.length / 2))
                     } as React.CSSProperties}
                     onMouseEnter={() => { setHoverIdx(idx); onHover(c) }}
                     onMouseLeave={() => { setHoverIdx(-1); onHL() }}
                   >
                     <div
                       className={cn(
-                        "rounded-xl overflow-hidden",
+                        "w-[126px] h-[176px] rounded-xl overflow-hidden",
                         "ring-2 transition-all duration-200"
                       )}
                       style={{
-                        width: `${cardW}px`,
-                        height: `${cardH}px`,
                         ringColor: isHovered ? pal.accent : 'rgba(255,255,255,0.15)',
-                        boxShadow: isHovered
-                          ? `0 0 40px ${pal.glow}, 0 20px 50px rgba(0,0,0,0.7)`
+                        boxShadow: isHovered 
+                          ? `0 0 40px ${pal.glow}, 0 20px 50px rgba(0,0,0,0.7)` 
                           : '0 8px 24px rgba(0,0,0,0.5)'
                       }}
                       onMouseDown={(e) => onHandCardMD(e, c.iid)}

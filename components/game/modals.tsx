@@ -259,17 +259,17 @@ export function ScryModal({ pid, n, cards, pal, onConfirm, onClose }: ScryModalP
         {remaining.length > 0 && (
           <div className="mb-4">
             <p className="text-xs text-muted-foreground mb-2">Select destination:</p>
-            <div className="flex flex-wrap gap-3 justify-center">
+            <div className="flex flex-wrap gap-2">
               {remaining.map((c) => (
-                <div key={c.iid} className="flex flex-col items-center gap-2">
-                  <div className="w-40 h-[224px] rounded-lg overflow-hidden border border-border shadow-lg">
+                <div key={c.iid} className="flex flex-col items-center gap-1">
+                  <div className="w-16 h-[88px] rounded overflow-hidden border border-border">
                     <CardImage src={c.img} alt={c.name} />
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-1">
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-7 px-4 text-xs text-emerald-400 border-emerald-400/40"
+                      className="h-5 px-2 text-[10px] text-emerald-400"
                       onClick={() => moveToTop(c)}
                     >
                       Top
@@ -277,7 +277,7 @@ export function ScryModal({ pid, n, cards, pal, onConfirm, onClose }: ScryModalP
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-7 px-4 text-xs text-amber-400 border-amber-400/40"
+                      className="h-5 px-2 text-[10px] text-amber-400"
                       onClick={() => moveToBottom(c)}
                     >
                       Bottom
@@ -371,7 +371,6 @@ export function DiceModal({ mode, onRoll, onFlip, onLog, onClose }: DiceModalPro
       const r = onRoll(sides)
       setResult(r)
       setRolling(false)
-      onLog(`rolled ${r} on a d${sides}`)
     }, 600)
   }
 
@@ -382,7 +381,6 @@ export function DiceModal({ mode, onRoll, onFlip, onLog, onClose }: DiceModalPro
       const r = onFlip()
       setResult(r)
       setRolling(false)
-      onLog(`flipped ${r}`)
     }, 500)
   }
 
@@ -480,18 +478,18 @@ export function DiceModal({ mode, onRoll, onFlip, onLog, onClose }: DiceModalPro
 // Settings Modal
 interface UISettingsModalProps {
   settings: {
+    cardScale: number
+    defaultZoom: number
     showZoomPanel: boolean
     uiScale: number
-    glassOpacity: number
   }
   onChange: (settings: UISettingsModalProps['settings']) => void
   players: Player[]
   onPlaymat: (pid: number, field: 'url' | 'fit', value: string) => void
   onClose: () => void
-  onLeave?: () => void
 }
 
-export function UISettingsModal({ settings, onChange, players, onPlaymat, onClose, onLeave }: UISettingsModalProps) {
+export function UISettingsModal({ settings, onChange, players, onPlaymat, onClose }: UISettingsModalProps) {
   const [s, setS] = useState(settings)
 
   const update = (key: keyof typeof settings, val: number | boolean) => {
@@ -526,6 +524,36 @@ export function UISettingsModal({ settings, onChange, players, onPlaymat, onClos
             onValueChange={([v]) => update('uiScale', v / 100)}
             min={70}
             max={150}
+            step={5}
+            className="mt-2"
+          />
+        </div>
+
+        {/* Card Scale */}
+        <div className="mb-6">
+          <Label className="text-xs text-muted-foreground">
+            Card Scale: <strong className="text-foreground">{Math.round(s.cardScale * 100)}%</strong>
+          </Label>
+          <Slider
+            value={[s.cardScale * 100]}
+            onValueChange={([v]) => update('cardScale', v / 100)}
+            min={50}
+            max={200}
+            step={5}
+            className="mt-2"
+          />
+        </div>
+
+        {/* Default Zoom */}
+        <div className="mb-6">
+          <Label className="text-xs text-muted-foreground">
+            Default Zoom: <strong className="text-foreground">{Math.round(s.defaultZoom * 100)}%</strong>
+          </Label>
+          <Slider
+            value={[s.defaultZoom * 100]}
+            onValueChange={([v]) => update('defaultZoom', v / 100)}
+            min={30}
+            max={300}
             step={5}
             className="mt-2"
           />
@@ -598,20 +626,9 @@ export function UISettingsModal({ settings, onChange, players, onPlaymat, onClos
           </div>
         )}
 
-        <div className="flex flex-col gap-2">
-          <Button className="w-full" onClick={onClose}>
-            Close
-          </Button>
-          {onLeave && (
-            <Button
-              variant="destructive"
-              className="w-full"
-              onClick={onLeave}
-            >
-              Leave Game
-            </Button>
-          )}
-        </div>
+        <Button className="w-full" onClick={onClose}>
+          Close
+        </Button>
       </div>
     </div>
   )
@@ -630,7 +647,7 @@ export function Toast({ msg, onDone }: ToastProps) {
   })
 
   return (
-    <div className="fixed top-14 right-4 z-[10000] animate-slide-up">
+    <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[10000] animate-slide-up">
       <div className="px-6 py-3 bg-card/95 backdrop-blur-md border border-border rounded-full shadow-xl shadow-black/50">
         <span className="text-sm font-medium">{msg}</span>
       </div>

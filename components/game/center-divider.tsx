@@ -12,6 +12,7 @@ interface ActionBarProps {
   round: number
   localPid: number
   hasDrawnInitial: boolean
+  zoom: number
   onPassTurn: () => void
   onSettings: () => void
   onLog: () => void
@@ -31,6 +32,7 @@ export function CenterDivider({
   round,
   localPid,
   hasDrawnInitial,
+  zoom,
   onPassTurn,
   onSettings,
   onLog,
@@ -50,14 +52,10 @@ export function CenterDivider({
   return (
     <div className="absolute left-0 right-0 top-[calc(50%-20px)] -translate-y-1/2 z-50 pointer-events-none flex flex-col items-center gap-2 px-4">
       {/* Main Action Bar */}
-      <div
-        className="pointer-events-auto rounded-2xl px-5 py-3 flex items-center gap-4"
+      <div 
+        className="pointer-events-auto liquid-glass-readable rounded-2xl px-5 py-3 flex items-center gap-4"
         style={{
-          backdropFilter: 'blur(24px) saturate(1.4)',
-          WebkitBackdropFilter: 'blur(24px) saturate(1.4)',
-          background: 'rgba(45, 48, 71, 0.55)',
-          border: '1px solid rgba(255, 255, 255, 0.12)',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.06)',
+          boxShadow: `0 8px 32px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.1)`,
         }}
       >
         {/* Logo */}
@@ -140,7 +138,7 @@ export function CenterDivider({
             onClick={() => onLife(localPid, -1)}
             variant="ghost"
             size="icon"
-            className="h-9 w-9 text-red-400/80 hover:text-red-400 hover:bg-red-500/10 rounded-xl"
+            className="h-9 w-9 text-red-500 hover:text-red-400 hover:bg-red-500/10 rounded-xl"
             title="Lose 1 Life"
           >
             <Minus className="w-5 h-5" />
@@ -155,7 +153,7 @@ export function CenterDivider({
             onClick={() => onLife(localPid, 1)}
             variant="ghost"
             size="icon"
-            className="h-9 w-9 text-emerald-400/80 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-xl"
+            className="h-9 w-9 text-emerald-500 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-xl"
             title="Gain 1 Life"
           >
             <Plus className="w-5 h-5" />
@@ -170,7 +168,7 @@ export function CenterDivider({
             onClick={onDice}
             variant="ghost"
             size="icon"
-            className="h-9 w-9 text-violet-400/70 hover:text-violet-400 hover:bg-violet-500/10 rounded-xl"
+            className="h-9 w-9 text-violet-500 hover:text-violet-400 hover:bg-violet-500/10 rounded-xl"
             title="Roll Dice"
           >
             <Dice6 className="w-5 h-5" />
@@ -179,7 +177,7 @@ export function CenterDivider({
             onClick={onCoin}
             variant="ghost"
             size="icon"
-            className="h-9 w-9 text-amber-400/70 hover:text-amber-400 hover:bg-amber-500/10 rounded-xl"
+            className="h-9 w-9 text-amber-500 hover:text-amber-400 hover:bg-amber-500/10 rounded-xl"
             title="Flip Coin"
           >
             <Coins className="w-5 h-5" />
@@ -188,7 +186,7 @@ export function CenterDivider({
             onClick={onLog}
             variant="ghost"
             size="icon"
-            className="h-9 w-9 text-sky-400/70 hover:text-sky-400 hover:bg-sky-500/10 rounded-xl"
+            className="h-9 w-9 text-sky-500 hover:text-sky-400 hover:bg-sky-500/10 rounded-xl"
             title="Action Log"
           >
             <ChevronDown className="w-5 h-5" />
@@ -204,24 +202,26 @@ export function CenterDivider({
           </Button>
         </div>
 
+        <div className="w-px h-8 bg-white/10" />
+
+        {/* Zoom indicator */}
+        <span className="text-xs font-mono text-muted-foreground tabular-nums min-w-[3rem] text-center">
+          {Math.round(zoom * 100)}%
+        </span>
       </div>
 
       {/* Sub-bar: Draw, Untap, Pass Turn */}
-      <div
-        className="pointer-events-auto rounded-xl px-3 py-2 flex items-center gap-2"
+      <div 
+        className="pointer-events-auto liquid-glass-subtle rounded-xl px-3 py-2 flex items-center gap-2"
         style={{
-          backdropFilter: 'blur(20px) saturate(1.3)',
-          WebkitBackdropFilter: 'blur(20px) saturate(1.3)',
-          background: 'rgba(45, 48, 71, 0.45)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          boxShadow: '0 4px 16px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.04)',
+          boxShadow: `0 4px 16px rgba(0,0,0,0.1)`,
         }}
       >
         {/* Draw 7 or Draw 1 */}
         {!hasDrawnInitial ? (
           <Button
             onClick={() => onDraw7(localPid)}
-            className="h-8 text-sm px-4 rounded-lg font-bold bg-[#b07a3e]/80 hover:bg-[#b07a3e] text-white/90 border-0"
+            className="h-8 text-sm px-4 rounded-lg font-bold bg-[#fb8f23] hover:bg-[#fb8f23]/90 text-white border-0"
           >
             <Layers className="w-4 h-4 mr-1.5" />
             Draw 7
@@ -242,7 +242,7 @@ export function CenterDivider({
         <Button
           onClick={() => onUntapAll(localPid)}
           variant="ghost"
-          className="h-8 text-sm px-3 rounded-lg font-semibold text-[#5aafa0] hover:text-[#5aafa0]/80 hover:bg-[#5aafa0]/10"
+          className="h-8 text-sm px-3 rounded-lg font-semibold text-[#00f5d4] hover:text-[#00f5d4]/80 hover:bg-[#00f5d4]/10"
           title="Untap all permanents"
         >
           <RotateCcw className="w-4 h-4 mr-1" />
@@ -253,7 +253,7 @@ export function CenterDivider({
 
         <Button
           onClick={onPassTurn}
-          className="h-8 text-sm px-4 rounded-lg font-bold bg-[#4a7fa8]/80 hover:bg-[#4a7fa8] text-white/90 border-0"
+          className="h-8 text-sm px-4 rounded-lg font-bold bg-[#1fa2ff] hover:bg-[#1fa2ff]/90 text-white border-0"
         >
           Pass Turn
           <ArrowRight className="w-4 h-4 ml-1.5" />

@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /c/Users/gvn/Documents/Code/Spellbound/AstralMagic/server/src/schema -type f -name *.ts)",
+      "Bash(wc -l /c/Users/gvn/Documents/Code/Spellbound/AstralMagic/app/page.tsx /c/Users/gvn/Documents/Code/Spellbound/AstralMagic/components/multiplayer/*.tsx /c/Users/gvn/Documents/Code/Spellbound/AstralMagic/components/game/*.tsx)",
+      "Bash(npx tsc:*)",
+      "Bash(grep -v \"^$\")",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
+    ]
+  }
+}

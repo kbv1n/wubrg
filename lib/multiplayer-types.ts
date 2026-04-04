@@ -52,8 +52,7 @@ export interface GameState {
 }
 
 // Client message types
-export type ClientMessage =
-  | { type: "request_state" }
+export type ClientMessage = 
   | { type: "set_name"; name: string }
   | { type: "set_color"; colorIndex: number }
   | { type: "set_playmat"; url: string }
@@ -72,13 +71,12 @@ export type ClientMessage =
   | { type: "shuffle_library" }
   | { type: "change_life"; delta: number }
   | { type: "change_poison"; delta: number }
-  | { type: "cmd_damage"; fromSessionId: string; delta: number }
+  | { type: "cmd_damage"; fromPid: number; delta: number }
   | { type: "pass_turn" }
   | { type: "untap_all" }
   | { type: "scry"; count: number }
   | { type: "reveal_top"; count: number }
   | { type: "create_token"; name: string; power: number; toughness: number }
-  | { type: "log_action"; msg: string }
 
 // Room info from lobby listing
 export interface RoomInfo {

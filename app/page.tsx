@@ -6,9 +6,9 @@ import type {
   ZoneType, ScreenType 
 } from '@/lib/game-types'
 import { PALETTES } from '@/lib/game-types'
-import {
-  DEMO_DATA, fetchScryfall, lookupCard, parseDeck,
-  createCardInstance, shuffle
+import { 
+  DEMO_DATA, fetchScryfall, lookupCard, parseDeck, 
+  createCardInstance, shuffle, parseManaProduction 
 } from '@/lib/game-data'
 
 // Components
@@ -31,7 +31,7 @@ import { DamageToastContainer } from '@/components/game/damage-toast'
 
 // Multiplayer
 import { MultiplayerWrapper } from '@/components/multiplayer/MultiplayerWrapper'
-import { MultiplayerBoard } from '@/components/multiplayer/MultiplayerBoard'
+import { MultiplayerGameBoard } from '@/components/multiplayer/MultiplayerGameBoard'
 import { GameActions } from '@/lib/colyseus-client'
 import type { GameState as MPGameState } from '@/lib/multiplayer-types'
 
@@ -51,7 +51,6 @@ export default function AstralMagicGame() {
   const [game, setGame] = useState<GameState | null>(null)
   const [hover, setHover] = useState<CardInstance | null>(null)
   const [hoverPos, setHoverPos] = useState({ x: 0, y: 0 })
-  const [previewScale, setPreviewScale] = useState(1)
   const [ctx, setCtx] = useState<{ x: number; y: number; pid: number; iid: string; zone: ZoneType } | null>(null)
   const [zv, setZV] = useState<{ pid: number; zone: ZoneType } | null>(null)
   const [ctr, setCtr] = useState<{ pid: number; iid: string } | null>(null)
@@ -60,6 +59,8 @@ export default function AstralMagicGame() {
   
   // UI Settings
   const [uiSettings, setUISettings] = useState({
+    cardScale: 1,
+    defaultZoom: 1,
     showZoomPanel: true,
     uiScale: 1,
     glassOpacity: 0.85
@@ -111,7 +112,7 @@ export default function AstralMagicGame() {
   }, [hover])
 
   // Helper functions
-  const getZoom = (pid: number) => zooms[pid] ?? 1
+  const getZoom = (pid: number) => zooms[pid] ?? uiSettings.defaultZoom
   const setZoom = (pid: number, z: number) => setZooms(prev => ({ ...prev, [pid]: Math.max(0.15, Math.min(4.0, z)) }))
   const getPan = (pid: number) => pans[pid] || { x: 0, y: 0 }
   const setPan = (pid: number, pan: { x: number; y: number }) => setPans(prev => ({ ...prev, [pid]: pan }))
@@ -193,6 +194,7 @@ export default function AstralMagicGame() {
         graveyard: [],
         exile: [],
         command: commanders,
+        manaPool: { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 },
         maxZ: 10,
         isDemo,
         missed,
@@ -253,7 +255,8 @@ export default function AstralMagicGame() {
           graveyard: p.graveyard.slice(),
           exile: p.exile.slice(),
           command: p.command.slice(),
-          cmdDmg: { ...p.cmdDmg }
+          cmdDmg: { ...p.cmdDmg },
+          manaPool: { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0, ...p.manaPool }
         }))
       }
       fn(next)
@@ -403,13 +406,25 @@ export default function AstralMagicGame() {
       const p = g.players[pid]
       p.battlefield = p.battlefield.map((c) => {
         if (c.iid !== iid) return c
-        return { ...c, tapped: !c.tapped }
+        const nowTapped = !c.tapped
+        if (nowTapped) {
+          const prod = parseManaProduction(c)
+          const total = Object.values(prod).reduce((s, v) => s + v, 0)
+          if (total > 0) {
+            const pool = { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0, ...p.manaPool }
+            Object.entries(prod).forEach(([k, v]) => { pool[k] = (pool[k] || 0) + v })
+            p.manaPool = pool
+            const manaStr = Object.entries(prod).filter(([, v]) => v > 0).map(([k, v]) => `{${k}}x${v}`).join(' ')
+            g.log = [`+${manaStr} from ${c.name}`, ...g.log.slice(0, 99)]
+          }
+        }
+        return { ...c, tapped: nowTapped }
       })
     })
     setCtx(null)
   }
 
-  // Pass turn — does NOT untap; untap is a separate manual action
+  // Pass turn
   const passTheTurn = () => {
     if (!game) return
     const nextPid = (game.turn + 1) % game.players.length
@@ -417,7 +432,9 @@ export default function AstralMagicGame() {
     mut((g) => {
       if (nextPid === 0) g.round++
       g.turn = nextPid
-      g.log = [`${nextName}'s turn - Round ${g.round}`, ...g.log.slice(0, 99)]
+      const np = g.players[nextPid]
+      np.battlefield = np.battlefield.map((c) => ({ ...c, tapped: false, summonSick: false }))
+      g.log = [`${np.name}'s turn - Round ${g.round}`, ...g.log.slice(0, 99)]
     })
     setToast(`${nextName}'s turn`)
   }
@@ -472,19 +489,13 @@ export default function AstralMagicGame() {
       })
     }
     
-    const onUp = (ev: MouseEvent) => {
+    const onUp = () => {
       dragRef.current = null
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
       // If we didn't drag, treat it as a tap/untap click
       if (!hasDragged) {
         tapCard(pid, iid)
-      } else {
-        // Check if dropped over hand dock area (bottom 120px of viewport)
-        const viewH = window.innerHeight
-        if (ev.clientY > viewH - 120) {
-          moveCard(pid, iid, 'hand')
-        }
       }
     }
     
@@ -755,11 +766,10 @@ export default function AstralMagicGame() {
   if (gameMode === 'multi') {
     return (
       <MultiplayerWrapper onSinglePlayer={() => setGameMode('single')}>
-        {({ gameState: mpState, localPlayerId }) => (
-          <MultiplayerBoard
-            mpState={mpState}
+        {({ gameState: mpState, localPlayerId, isMultiplayer }) => (
+          <MultiplayerGameBoard 
+            gameState={mpState}
             localPlayerId={localPlayerId}
-            onLeave={() => setGameMode('select')}
           />
         )}
       </MultiplayerWrapper>
@@ -810,7 +820,8 @@ export default function AstralMagicGame() {
       zoom: getZoom(p.pid),
       pan: getPan(p.pid),
       onPan: (newPan: { x: number; y: number }) => setPan(p.pid, newPan),
-      onResetView: () => { setZoom(p.pid, 1); setPan(p.pid, { x: 0, y: 0 }) },
+      onResetView: () => { setZoom(p.pid, uiSettings.defaultZoom); setPan(p.pid, { x: 0, y: 0 }) },
+      cardScale: uiSettings.cardScale,
       onLife: (d: number) => changeLife(p.pid, d),
       onCardMD: (e: React.MouseEvent, iid: string) => onCardMD(e, p.pid, iid),
       onCardRC: (e: React.MouseEvent, iid: string, zone: string) => {
@@ -818,7 +829,7 @@ export default function AstralMagicGame() {
         e.stopPropagation()
         setCtx({ x: e.clientX, y: e.clientY, pid: p.pid, iid, zone: zone as ZoneType })
       },
-      onHover: (c: CardInstance) => { if (!c.faceDown) { setHover(c); setPreviewScale(1) } },
+      onHover: (c: CardInstance) => setHover(c),
       onHL: () => setHover(null),
       onZone: (zone: string) => openZone(p.pid, zone as ZoneType),
       onHandCardMD: (e: React.MouseEvent, iid: string) => onHandCardMD(e, p.pid, iid),
@@ -870,6 +881,7 @@ export default function AstralMagicGame() {
         round={round}
         localPid={localPid}
         hasDrawnInitial={hasDrawnInitial[localPid] || false}
+        zoom={getZoom(localPid)}
         onPassTurn={passTheTurn}
         onSettings={() => setSettingsOpen(true)}
         onLog={() => setLog(o => !o)}
@@ -906,22 +918,15 @@ export default function AstralMagicGame() {
 
       {/* Cursor-following card preview - constrained to viewport */}
       {hover && uiSettings.showZoomPanel && (
-        <div
-          className="fixed z-[9998] animate-card-enter"
+        <div 
+          className="fixed z-[9998] pointer-events-none animate-card-enter"
           style={{
+            // Constrain preview to stay within viewport
             left: Math.min(hoverPos.x + 20, (typeof window !== 'undefined' ? window.innerWidth : 1200) - 280),
             top: Math.max(20, Math.min(hoverPos.y - 100, (typeof window !== 'undefined' ? window.innerHeight : 800) - 450)),
-            pointerEvents: 'auto',
-          }}
-          onWheel={(e) => {
-            e.stopPropagation()
-            setPreviewScale(s => Math.max(0.5, Math.min(3, s + (e.deltaY > 0 ? -0.15 : 0.15))))
           }}
         >
-          <div
-            className="w-52 rounded-xl overflow-hidden shadow-2xl ring-1 ring-white/20 origin-top-left transition-transform duration-100"
-            style={{ transform: `scale(${previewScale})` }}
-          >
+          <div className="w-52 rounded-xl overflow-hidden shadow-2xl ring-1 ring-white/20">
             <CardImage src={hover.img} alt={hover.name} />
           </div>
           <div className="liquid-glass-readable mt-2 px-3 py-2.5 rounded-xl max-w-[220px]">
@@ -970,7 +975,6 @@ export default function AstralMagicGame() {
           }}
           onScry={(n) => openScry(zv.pid, n)}
           onMill={(n) => { millCards(zv.pid, n); setZV(null) }}
-          onShuffle={() => { shuffleLib(zv.pid); setZV(null) }}
         />
       )}
 

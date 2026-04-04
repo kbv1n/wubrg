@@ -32,6 +32,20 @@ export function JoinScreen({ onCreateRoom, onJoinRoom }: JoinScreenProps) {
     }
   })
 
+  const getConnectionError = (err: unknown): string => {
+    // ProgressEvent means network/connection failure
+    if (err && typeof err === 'object' && 'type' in err && (err as {type: string}).type === 'error') {
+      return "Cannot connect to game server. Make sure the Colyseus server is running on localhost:2567 (see /server folder for setup instructions)."
+    }
+    if (err instanceof Error) {
+      if (err.message.includes('WebSocket') || err.message.includes('connection')) {
+        return "Cannot connect to game server. Make sure the Colyseus server is running."
+      }
+      return err.message
+    }
+    return "Failed to connect to server. Check that the game server is running."
+  }
+
   const handleCreate = async () => {
     if (!name.trim()) {
       setError("Please enter your name")
@@ -42,7 +56,7 @@ export function JoinScreen({ onCreateRoom, onJoinRoom }: JoinScreenProps) {
     try {
       await onCreateRoom(name.trim(), maxPlayers)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create room")
+      setError(getConnectionError(err))
       setLoading(false)
     }
   }
@@ -61,7 +75,7 @@ export function JoinScreen({ onCreateRoom, onJoinRoom }: JoinScreenProps) {
     try {
       await onJoinRoom(name.trim(), roomCode.trim())
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to join room")
+      setError(getConnectionError(err))
       setLoading(false)
     }
   }
@@ -143,22 +157,7 @@ export function JoinScreen({ onCreateRoom, onJoinRoom }: JoinScreenProps) {
             </button>
             
             <h2 className="text-xl font-bold mb-6">Create Lobby</h2>
-
-            {/* Name input for create mode */}
-            <div className="mb-6">
-              <Label htmlFor="createName" className="text-sm font-medium text-foreground/80 mb-2 block">
-                Your Name
-              </Label>
-              <Input
-                id="createName"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Enter your name..."
-                className="h-12 text-lg bg-background/50 border-border/50 focus:border-primary"
-                maxLength={20}
-              />
-            </div>
-
+            
             <div className="mb-6">
               <Label className="text-sm font-medium text-foreground/80 mb-3 block">
                 Player Count
@@ -183,7 +182,7 @@ export function JoinScreen({ onCreateRoom, onJoinRoom }: JoinScreenProps) {
 
             <Button
               onClick={handleCreate}
-              disabled={loading || !name.trim()}
+              disabled={loading}
               className="w-full h-14 text-lg font-bold bg-primary hover:bg-primary/90"
             >
               {loading ? (
@@ -200,30 +199,15 @@ export function JoinScreen({ onCreateRoom, onJoinRoom }: JoinScreenProps) {
 
         {mode === "join" && (
           <>
-            <button
+            <button 
               onClick={() => setMode("select")}
               className="text-sm text-muted-foreground hover:text-foreground mb-6 flex items-center gap-1"
             >
               &larr; Back
             </button>
-
+            
             <h2 className="text-xl font-bold mb-6">Join Lobby</h2>
-
-            {/* Name input (always visible in join mode for invite links) */}
-            <div className="mb-6">
-              <Label htmlFor="joinName" className="text-sm font-medium text-foreground/80 mb-2 block">
-                Your Name
-              </Label>
-              <Input
-                id="joinName"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Enter your name..."
-                className="h-12 text-lg bg-background/50 border-border/50 focus:border-primary"
-                maxLength={20}
-              />
-            </div>
-
+            
             <div className="mb-6">
               <Label htmlFor="roomCode" className="text-sm font-medium text-foreground/80 mb-2 block">
                 Room Code
@@ -239,7 +223,7 @@ export function JoinScreen({ onCreateRoom, onJoinRoom }: JoinScreenProps) {
 
             <Button
               onClick={handleJoin}
-              disabled={loading || !roomCode.trim() || !name.trim()}
+              disabled={loading || !roomCode.trim()}
               className="w-full h-14 text-lg font-bold bg-primary hover:bg-primary/90"
             >
               {loading ? (
