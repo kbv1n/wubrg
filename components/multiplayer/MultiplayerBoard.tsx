@@ -276,15 +276,7 @@ export function MultiplayerBoard({ mpState, localPlayerId, onLeave }: Props) {
     handDragRef.current = { pid, iid }
     setHandGhost({ card, x: e.clientX, y: e.clientY })
 
-    console.log("[v0] onHandCardMD - localPid:", localPid, "outerRefs.current:", outerRefs.current)
-    console.log("[v0] onHandCardMD - outerRefs.current[localPid]:", outerRefs.current[localPid])
-    console.log("[v0] onHandCardMD - outerRefs.current[localPid]?.current:", outerRefs.current[localPid]?.current)
-
-    const getBFRect = () => {
-      const ref = outerRefs.current[localPid]
-      console.log("[v0] getBFRect called - ref:", ref, "ref?.current:", ref?.current)
-      return ref?.current?.getBoundingClientRect() ?? null
-    }
+    const getBFRect = () => outerRefs.current[localPid]?.current?.getBoundingClientRect() ?? null
 
     const onMove = (ev: MouseEvent) => {
       setHandGhost((prev) => (prev ? { ...prev, x: ev.clientX, y: ev.clientY } : null))
@@ -302,18 +294,13 @@ export function MultiplayerBoard({ mpState, localPlayerId, onLeave }: Props) {
       window.removeEventListener('mouseup', onUp)
 
       const hd = handDragRef.current
-      console.log("[v0] onUp - hd:", hd, "isLocal(hd?.pid):", hd ? isLocal(hd.pid) : false)
       if (hd && isLocal(hd.pid)) {
         const rect = getBFRect()
-        console.log("[v0] onUp - rect:", rect, "mouse:", ev.clientX, ev.clientY)
         if (rect && ev.clientX >= rect.left && ev.clientX <= rect.right &&
             ev.clientY >= rect.top && ev.clientY <= rect.bottom) {
           const dropX = Math.max(2, Math.min(90, ((ev.clientX - rect.left) / rect.width) * 100))
           const dropY = Math.max(2, Math.min(88, ((ev.clientY - rect.top) / rect.height) * 100))
-          console.log("[v0] onUp - calling GameActions.moveCard with dropX:", dropX, "dropY:", dropY)
           GameActions.moveCard(hd.iid, 'battlefield', dropX, dropY)
-        } else {
-          console.log("[v0] onUp - drop outside battlefield rect")
         }
       }
 
