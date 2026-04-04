@@ -101,7 +101,7 @@ export class GameRoom extends Room<GameState> {
       // Reassign host if needed
       if (this.state.hostId === client.sessionId && this.state.players.size > 0) {
         const newHost = this.state.playerOrder[0]
-        if (newHost) {
+        if (newHost !== undefined) {
           this.state.hostId = newHost
           const newHostPlayer = this.state.players.get(newHost)
           if (newHostPlayer) {
@@ -392,10 +392,11 @@ export class GameRoom extends Room<GameState> {
     }
 
     // Shuffle library
-    const cards = [...player.library]
+    const cards: CardState[] = []
+    player.library.forEach((c: CardState) => cards.push(c))
     player.library.clear()
     for (const card of shuffle(cards)) {
-      if (card) player.library.push(card)
+      player.library.push(card)
     }
 
     this.addLog(`${player.name} loaded deck (${player.library.length + player.commandZone.length} cards)`)
@@ -479,23 +480,26 @@ export class GameRoom extends Room<GameState> {
 
     this.addLog("Game started!")
     const firstPlayerId = this.state.playerOrder[0]
-    const firstPlayer = firstPlayerId ? this.state.players.get(firstPlayerId) : undefined
-    if (firstPlayer) {
-      this.addLog(`${firstPlayer.name}'s turn`)
+    if (firstPlayerId !== undefined) {
+      const firstPlayer = this.state.players.get(firstPlayerId)
+      if (firstPlayer) {
+        this.addLog(`${firstPlayer.name}'s turn`)
+      }
     }
   }
 
   moveCard(player: PlayerState, iid: string, toZone: string, x?: number, y?: number, index?: number) {
     // Find card in any zone
     const zones = ["battlefield", "hand", "library", "graveyard", "exile", "commandZone"] as const
-    let card: CardState | null = null
+    let card: CardState | undefined = undefined
     let fromZone: string = ""
 
     for (const zoneName of zones) {
       const zone = player[zoneName] as ArraySchema<CardState>
-      const idx = zone.toArray().findIndex(c => c.iid === iid)
+      const cardsArray = zone.toArray()
+      const idx = cardsArray.findIndex(c => c.iid === iid)
       if (idx >= 0) {
-        card = zone[idx] ?? null
+        card = cardsArray[idx]
         fromZone = zoneName
         zone.splice(idx, 1)
         break
@@ -581,10 +585,11 @@ export class GameRoom extends Room<GameState> {
   }
 
   shuffleLibrary(player: PlayerState) {
-    const cards = [...player.library]
+    const cards: CardState[] = []
+    player.library.forEach((c: CardState) => cards.push(c))
     player.library.clear()
     for (const card of shuffle(cards)) {
-      if (card) player.library.push(card)
+      player.library.push(card)
     }
     this.addLog(`${player.name} shuffled their library`)
   }
@@ -598,7 +603,7 @@ export class GameRoom extends Room<GameState> {
 
   passTurn() {
     const currentPlayerId = this.state.playerOrder[this.state.turn]
-    const currentPlayer = currentPlayerId ? this.state.players.get(currentPlayerId) : undefined
+    const currentPlayer = currentPlayerId !== undefined ? this.state.players.get(currentPlayerId) : undefined
 
     // Move to next player
     this.state.turn = (this.state.turn + 1) % this.state.playerOrder.length
@@ -609,7 +614,7 @@ export class GameRoom extends Room<GameState> {
     }
 
     const nextPlayerId = this.state.playerOrder[this.state.turn]
-    const nextPlayer = nextPlayerId ? this.state.players.get(nextPlayerId) : undefined
+    const nextPlayer = nextPlayerId !== undefined ? this.state.players.get(nextPlayerId) : undefined
     if (currentPlayer && nextPlayer) {
       this.addLog(`${currentPlayer.name} passed turn to ${nextPlayer.name}`)
     }
