@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { Check, Crown, Wifi, WifiOff } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { PALETTES } from "@/lib/game-types"
@@ -11,15 +12,27 @@ interface PlayerSlotProps {
   isLocal: boolean
   takenColors: number[]
   onColorChange?: (colorIndex: number) => void
+  onNameChange?: (name: string) => void
 }
 
-export function PlayerSlot({ 
-  player, 
-  isHost, 
-  isLocal, 
+export function PlayerSlot({
+  player,
+  isHost,
+  isLocal,
   takenColors,
-  onColorChange 
+  onColorChange,
+  onNameChange,
 }: PlayerSlotProps) {
+  const [editingName, setEditingName] = useState(false)
+  const [nameInput, setNameInput] = useState(player.name)
+
+  const submitName = () => {
+    const trimmed = nameInput.trim()
+    if (trimmed && trimmed !== player.name) {
+      onNameChange?.(trimmed)
+    }
+    setEditingName(false)
+  }
   const pal = player.colorIndex >= 0 ? PALETTES[player.colorIndex] : null
   
   return (
@@ -45,10 +58,34 @@ export function PlayerSlot({
             <WifiOff className="w-4 h-4 text-destructive" />
           )}
           
-          {/* Player name */}
-          <span className="font-bold text-lg" style={pal ? { color: pal.accent } : undefined}>
-            {player.name}
-          </span>
+          {/* Player name — editable for local player */}
+          {isLocal && onNameChange ? (
+            editingName ? (
+              <input
+                autoFocus
+                value={nameInput}
+                onChange={e => setNameInput(e.target.value)}
+                onBlur={submitName}
+                onKeyDown={e => { if (e.key === 'Enter') submitName(); if (e.key === 'Escape') setEditingName(false) }}
+                maxLength={20}
+                className="font-bold text-lg bg-transparent border-b border-current outline-none w-32"
+                style={pal ? { color: pal.accent } : undefined}
+              />
+            ) : (
+              <button
+                onClick={() => { setNameInput(player.name); setEditingName(true) }}
+                className="font-bold text-lg underline-offset-2 hover:underline cursor-text"
+                style={pal ? { color: pal.accent } : undefined}
+                title="Click to edit your name"
+              >
+                {player.name}
+              </button>
+            )
+          ) : (
+            <span className="font-bold text-lg" style={pal ? { color: pal.accent } : undefined}>
+              {player.name}
+            </span>
+          )}
           
           {/* Host badge */}
           {isHost && (

@@ -205,31 +205,6 @@ export function shuffle<T>(arr: T[]): T[] {
   return a
 }
 
-// Parse mana production from oracle text
-export function parseManaProduction(card: CardData): Record<string, number> {
-  if (!card?.oracle) return {}
-  
-  const result: Record<string, number> = {}
-  const addRe = /[Aa]dd\s+((?:\{[^}]+\}\s*)+)/g
-  let m
-  
-  while ((m = addRe.exec(card.oracle)) !== null) {
-    const symRe = /\{([WUBRGC])\}/g
-    let s
-    while ((s = symRe.exec(m[1])) !== null) {
-      const c = s[1]
-      result[c] = (result[c] || 0) + 1
-    }
-  }
-  
-  // "any color" with no explicit symbols
-  if (Object.keys(result).length === 0 && /any color/i.test(card.oracle) && /[Aa]dd/i.test(card.oracle)) {
-    result['C'] = 1
-  }
-  
-  return result
-}
-
 // Get rarity color
 export function getRarityColor(rarity: string): string {
   const colors: Record<string, string> = {

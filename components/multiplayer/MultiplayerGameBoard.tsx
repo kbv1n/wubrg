@@ -65,7 +65,6 @@ function mpPlayerToPlayer(mpPlayer: MPPlayerState, idx: number): Player {
     graveyard: mpPlayer.graveyard.map(mpCardToCardInstance),
     exile: mpPlayer.exile.map(mpCardToCardInstance),
     command: mpPlayer.commandZone.map(mpCardToCardInstance),
-    manaPool: {},
     maxZ: 0,
     isDemo: false,
     missed: 0,
@@ -231,6 +230,7 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
     zoom: getZoom(idx),
     pan: pan[idx] ?? { x: 0, y: 0 },
     onPan: (newPan: { x: number; y: number }) => setPlayerPan(idx, newPan),
+    onResetView: () => { setPlayerZoom(idx, 1); setPlayerPan(idx, { x: 0, y: 0 }) },
     cardScale: uiSettings.cardScale,
     onLife: (delta: number) => {
       if (idx === localPid) {

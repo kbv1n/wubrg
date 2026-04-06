@@ -12,6 +12,7 @@ import {
 import { cn } from "@/lib/utils"
 import { PlayerSlot } from "./PlayerSlot"
 import { GameActions } from "@/lib/colyseus-client"
+import { fetchScryfall, parseDeck, DEMO_DATA } from "@/lib/game-data"
 import type { GameState, PlayerState } from "@/lib/multiplayer-types"
 
 interface LobbyScreenProps {
@@ -25,6 +26,7 @@ export function LobbyScreen({ gameState, localPlayerId, onLeave }: LobbyScreenPr
   const [playmatUrl, setPlaymatUrl] = useState("")
   const [copied, setCopied] = useState(false)
   const [showDeckInput, setShowDeckInput] = useState(true)
+  const [deckLoading, setDeckLoading] = useState(false)
   
   const localPlayer = gameState.players.get(localPlayerId)
   const isHost = gameState.hostId === localPlayerId
@@ -51,10 +53,19 @@ export function LobbyScreen({ gameState, localPlayerId, onLeave }: LobbyScreenPr
     }
   }
 
-  const handlePasteDeck = () => {
-    if (deckText.trim()) {
-      GameActions.pasteDeck(deckText.trim())
+  const handlePasteDeck = async () => {
+    if (!deckText.trim()) return
+    setDeckLoading(true)
+    // Fetch card data client-side so images are available during the game
+    const entries = parseDeck(deckText.trim())
+    const toFetch = entries
+      .map(e => e.name)
+      .filter(name => !DEMO_DATA.find(d => d.name.toLowerCase() === name.toLowerCase()))
+    if (toFetch.length > 0) {
+      await fetchScryfall(toFetch)
     }
+    GameActions.pasteDeck(deckText.trim())
+    setDeckLoading(false)
   }
 
   const handleSetPlaymat = () => {
@@ -148,6 +159,7 @@ export function LobbyScreen({ gameState, localPlayerId, onLeave }: LobbyScreenPr
                   isLocal={player.odId === localPlayerId}
                   takenColors={gameState.takenColors}
                   onColorChange={player.odId === localPlayerId ? GameActions.setColor : undefined}
+                  onNameChange={player.odId === localPlayerId ? GameActions.setName : undefined}
                 />
               ))}
               
@@ -185,10 +197,10 @@ export function LobbyScreen({ gameState, localPlayerId, onLeave }: LobbyScreenPr
                   />
                   <Button
                     onClick={handlePasteDeck}
-                    disabled={!deckText.trim()}
+                    disabled={!deckText.trim() || deckLoading}
                     className="w-full"
                   >
-                    Load Deck
+                    {deckLoading ? "Fetching card data..." : "Load Deck"}
                   </Button>
                   
                   {localPlayer && (localPlayer.library?.length || 0) > 0 && (

@@ -8,7 +8,7 @@ import type {
 import { PALETTES } from '@/lib/game-types'
 import { 
   DEMO_DATA, fetchScryfall, lookupCard, parseDeck, 
-  createCardInstance, shuffle, parseManaProduction 
+  createCardInstance, shuffle
 } from '@/lib/game-data'
 
 // Components
@@ -24,12 +24,11 @@ import { ContextMenu } from '@/components/game/context-menu'
 import { ZoneViewer } from '@/components/game/zone-viewer'
 import { CardImage } from '@/components/game/card-image'
 import { MorphingText } from "@/components/ui/morphing-text"
-import { GiAbstract023 } from "react-icons/gi";
-import { GiAlienBug } from "react-icons/gi";
+import { GiCrownOfThorns , GiFootTrip, GiAlienBug } from "react-icons/gi";
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from '@/components/ui/button'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Plus, ArrowRight } from 'lucide-react'
 
 import { 
   CounterModal, CmdDmgModal, ScryModal, 
@@ -45,85 +44,18 @@ import { GameActions } from '@/lib/colyseus-client'
 import type { GameState as MPGameState } from '@/lib/multiplayer-types'
 import { cn } from "@/lib/utils"
 
-interface JoinScreenProps {
-  onCreateRoom: (name: string, maxPlayers: number) => Promise<void>
-  onJoinRoom: (name: string, roomId: string) => Promise<void>
-}
 
-export function JoinScreen({ onCreateRoom, onJoinRoom }: JoinScreenProps) {
-  const [name, setName] = useState("")
-  const [roomCode, setRoomCode] = useState("")
-  const [maxPlayers, setMaxPlayers] = useState(4)
-  const [mode, setMode] = useState<"select" | "create" | "join">("select")
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
-
-  useState(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search)
-      const room = params.get("room")
-      if (room) {
-        setRoomCode(room)
-        setMode("join")
-      }
-    }
-  })
-
-  const getConnectionError = (err: unknown): string => {
-    // ProgressEvent means network/connection failure
-    if (err && typeof err === 'object' && 'type' in err && (err as {type: string}).type === 'error') {
-      return "Cannot connect to game server. Make sure the Colyseus server is running on localhost:2567 (see /server folder for setup instructions)."
-    }
-    if (err instanceof Error) {
-      if (err.message.includes('WebSocket') || err.message.includes('connection')) {
-        return "Cannot connect to game server. Make sure the Colyseus server is running."
-      }
-      return err.message
-    }
-    return "Failed to connect to server. Check that the game server is running."
-  }
-
-  const handleCreate = async () => {
-    if (!name.trim()) {
-      setError("Please enter your name")
-      {/* This should prompt the user to enter a name */}
-      return
-    }
-    setError("")
-    setLoading(true)
-    try {
-      await onCreateRoom(name.trim(), maxPlayers)
-    } catch (err) {
-      setError(getConnectionError(err))
-      setLoading(false)
-    }
-  }
-
-  const handleJoin = async () => {
-    if (!name.trim()) {
-      setError("Please enter your name")
-      {/* This should prompt the user to enter a name */}
-      return
-    }
-    if (!roomCode.trim()) {
-      setError("Please enter a room code")
-      return
-    }
-    setError("")
-    setLoading(true)
-    try {
-      await onJoinRoom(name.trim(), roomCode.trim())
-    } catch (err) {
-      setError(getConnectionError(err))
-      setLoading(false)
-    }
-  }
-}
-
-
-  export default function AstralMagicGame() {
+export default function AstralMagicGame() {
   // Game mode: 'select' | 'single' | 'multi'
   const [gameMode, setGameMode] = useState<'select' | 'single' | 'multi'>('select')
+
+  // Multiplayer state for create/join
+  const [multiplayerAction, setMultiplayerAction] = useState<
+    { type: 'create'; maxPlayers: number } | { type: 'join'; roomCode: string } | null
+  >(null)
+  const [roomCode, setRoomCode] = useState("")
+  const [maxPlayers, setMaxPlayers] = useState(4)
+  const [showCreateOptions, setShowCreateOptions] = useState(false)
   
   // Screen state
   const [screen, setScreen] = useState<ScreenType>('setup')
@@ -142,7 +74,31 @@ export function JoinScreen({ onCreateRoom, onJoinRoom }: JoinScreenProps) {
   const [ctr, setCtr] = useState<{ pid: number; iid: string } | null>(null)
   const [dmg, setDmg] = useState<number | null>(null)
   const [logOpen, setLog] = useState(true)
-  
+
+  // Auto-join from URL param
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search)
+      const room = params.get("room")
+      if (room) {
+        setRoomCode(room)
+        setMultiplayerAction({ type: 'join', roomCode: room })
+        setGameMode('multi')
+      }
+    }
+  }, [])
+
+  const handleCreateRoom = () => {
+    setMultiplayerAction({ type: 'create', maxPlayers })
+    setGameMode('multi')
+  }
+
+  const handleJoinRoom = () => {
+    if (!roomCode.trim()) return
+    setMultiplayerAction({ type: 'join', roomCode: roomCode.trim() })
+    setGameMode('multi')
+  }
+
   // UI Settings
   const [uiSettings, setUISettings] = useState({
     cardScale: 1,
@@ -280,7 +236,6 @@ export function JoinScreen({ onCreateRoom, onJoinRoom }: JoinScreenProps) {
         graveyard: [],
         exile: [],
         command: commanders,
-        manaPool: { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 },
         maxZ: 10,
         isDemo,
         missed,
@@ -342,7 +297,6 @@ export function JoinScreen({ onCreateRoom, onJoinRoom }: JoinScreenProps) {
           exile: p.exile.slice(),
           command: p.command.slice(),
           cmdDmg: { ...p.cmdDmg },
-          manaPool: { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0, ...p.manaPool }
         }))
       }
       fn(next)
@@ -493,17 +447,6 @@ export function JoinScreen({ onCreateRoom, onJoinRoom }: JoinScreenProps) {
       p.battlefield = p.battlefield.map((c) => {
         if (c.iid !== iid) return c
         const nowTapped = !c.tapped
-        if (nowTapped) {
-          const prod = parseManaProduction(c)
-          const total = Object.values(prod).reduce((s, v) => s + v, 0)
-          if (total > 0) {
-            const pool = { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0, ...p.manaPool }
-            Object.entries(prod).forEach(([k, v]) => { pool[k] = (pool[k] || 0) + v })
-            p.manaPool = pool
-            const manaStr = Object.entries(prod).filter(([, v]) => v > 0).map(([k, v]) => `{${k}}x${v}`).join(' ')
-            g.log = [`+${manaStr} from ${c.name}`, ...g.log.slice(0, 99)]
-          }
-        }
         return { ...c, tapped: nowTapped }
       })
     })
@@ -794,11 +737,7 @@ export function JoinScreen({ onCreateRoom, onJoinRoom }: JoinScreenProps) {
     return null
   }
 const texts = [
-  "gavins",
-  "magic",
-]
-const mtexts = [
-  "online"
+  "wubrg",
 ]
   // Mode Selection Screen
 if (gameMode === 'select') {
@@ -817,23 +756,66 @@ if (gameMode === 'select') {
           
           {/* Buttons */}
           <div className="flex flex-row items-center gap-4">
+            <div className="relative">               
             <button
-              onClick={() => setGameMode('multi')}
+              onClick={() => setShowCreateOptions(!showCreateOptions)}
               className="h-16 px-6 rounded-4xl flex items-center gap-3 hover:border-foreground/50 transition-all border border-transparent whitespace-nowrap"
             >
-              <GiAbstract023 className="w-8 h-8" />
-              <span className="text-lg font-bold">online</span>
+              <GiCrownOfThorns className="w-8 h-8" />
+              <span className="text-lg font-bold">host</span>
             </button>
-              {/* Right here needs to be the entry box for Room Code and a small button next to it to join */}
-            <Button
-              onClick={handleCreate}
-              disabled={loading}
-              className="w-full h-14 text-lg font-bold bg-primary hover:bg-primary/90"
-            >
-            </Button>
+            {/* Create Room Button */}
+           
+          {showCreateOptions && (
+            <div className="absolute top-full mt-2 left-0 bg-card border border-border rounded-xl p-3 shadow-xl z-50 min-w-[200px]">
+              <p className="text-sm text-muted-foreground mb-2">max Players</p>
+              <div className="grid grid-cols-5 gap-1 mb-3">
+                {[2, 3, 4, 5, 6].map((num) => (
+                  <button
+                    key={num}
+                    onClick={() => setMaxPlayers(num)}
+                    className={cn(
+                      "h-10 rounded-lg font-bold text-sm transition-all",
+                      maxPlayers === num
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary/50 hover:bg-secondary"
+                    )}
+                  >
+                    {num}
+                  </button>
+                ))}
+              </div>
+              <Button onClick={handleCreateRoom} className="w-full h-10 font-bold">
+                Create Room
+              </Button>
+            </div>
+          )}
+        </div>
+        
+        {/* Join Room Input */}
+        <div className="flex items-center gap-2">
+          <GiFootTrip className="w-8 h-8" />
+          <Input
+            value={roomCode}
+            onChange={(e) => setRoomCode(e.target.value)}
+            placeholder="Room code..."
+            className="h-8 w-16  text-center font-mono text-lg"
+            onKeyDown={(e) => e.key === 'Enter' && roomCode.trim() && handleJoinRoom()}
+          />
+          <button
+            onClick={handleJoinRoom}
+            disabled={!roomCode.trim()}
+            className={cn(
+              "h-7 px-2 rounded-2xl flex items-center gap-2 transition-all border",
+              roomCode.trim() ? "hover:bg-foreground/5 border-foreground/20" : "opacity-50 cursor-not-allowed"
+            )}
+          >
+            <ArrowRight className="w-5 h-5" />
+          </button>
+        </div>
             <button
               onClick={() => setGameMode('single')}
-              className="h-16 px-6 rounded-4xl flex items-center gap-3 hover:bg-foreground/5 border-foreground/50 transition-all border border-transparent whitespace-nowrap"
+              className="h-16 px-6 rounded-4xl flex items-center gap-3 hover: border-foreground/50 transition-all border border-transparent whitespace-nowrap"
             >
               <GiAlienBug className="w-8 h-8" />
               <span className="text-lg font-bold">debug</span>
@@ -848,12 +830,16 @@ if (gameMode === 'select') {
   // Multiplayer Mode
   if (gameMode === 'multi') {
     return (
-      <MultiplayerWrapper onSinglePlayer={() => setGameMode('single')}>
-        {({ gameState: mpState, localPlayerId, isMultiplayer }) => (
-          <MultiplayerGameBoard 
-            gameState={mpState}
-            localPlayerId={localPlayerId}
-          />
+      <MultiplayerWrapper
+        onBack={() => {
+          setGameMode('select')
+          setMultiplayerAction(null)
+          setRoomCode("")
+        }}
+        initialAction={multiplayerAction}
+      >
+        {({ gameState, localPlayerId }) => (
+          <MultiplayerGameBoard gameState={gameState} localPlayerId={localPlayerId} />
         )}
       </MultiplayerWrapper>
     )

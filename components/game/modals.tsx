@@ -482,6 +482,7 @@ interface UISettingsModalProps {
     defaultZoom: number
     showZoomPanel: boolean
     uiScale: number
+    glassOpacity: number
   }
   onChange: (settings: UISettingsModalProps['settings']) => void
   players: Player[]

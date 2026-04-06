@@ -9,7 +9,7 @@ const app = express()
 const port = parseInt(process.env.PORT || "2567", 10)
 
 // CORS configuration
-const corsOrigin = process.env.CORS_ORIGIN || "http://localhost:3000"
+const corsOrigin = process.env.CORS_ORIGIN || "https://astralmagic.onrender.com"
 app.use(cors({
   origin: corsOrigin.split(","),
   credentials: true

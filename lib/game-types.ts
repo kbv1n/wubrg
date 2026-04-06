@@ -56,7 +56,6 @@ export interface Player {
   graveyard: CardInstance[]
   exile: CardInstance[]
   command: CardInstance[]
-  manaPool: Record<string, number>
   maxZ: number
   isDemo: boolean
   missed: number
