@@ -14,9 +14,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'AstralMagic - MTG Commander',
-  description: 'An immersive Magic: The Gathering Commander browser game experience',
-  generator: 'v0.app',
+  title: 'gavinsmod',
+  description: 'Gavins Solution to Commander Online',
   icons: {
     icon: [
       {

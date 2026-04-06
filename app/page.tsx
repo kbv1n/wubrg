@@ -23,19 +23,105 @@ import { ManaSymbols, OracleText } from '@/components/game/mana-symbols'
 import { ContextMenu } from '@/components/game/context-menu'
 import { ZoneViewer } from '@/components/game/zone-viewer'
 import { CardImage } from '@/components/game/card-image'
+import { MorphingText } from "@/components/ui/morphing-text"
+import { GiAbstract023 } from "react-icons/gi";
+import { GiAlienBug } from "react-icons/gi";
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Button } from '@/components/ui/button'
+import { Loader2 } from 'lucide-react'
+
 import { 
   CounterModal, CmdDmgModal, ScryModal, 
   DiceModal, UISettingsModal, Toast 
 } from '@/components/game/modals'
 import { DamageToastContainer } from '@/components/game/damage-toast'
 
+
 // Multiplayer
 import { MultiplayerWrapper } from '@/components/multiplayer/MultiplayerWrapper'
 import { MultiplayerGameBoard } from '@/components/multiplayer/MultiplayerGameBoard'
 import { GameActions } from '@/lib/colyseus-client'
 import type { GameState as MPGameState } from '@/lib/multiplayer-types'
+import { cn } from "@/lib/utils"
 
-export default function AstralMagicGame() {
+interface JoinScreenProps {
+  onCreateRoom: (name: string, maxPlayers: number) => Promise<void>
+  onJoinRoom: (name: string, roomId: string) => Promise<void>
+}
+
+export function JoinScreen({ onCreateRoom, onJoinRoom }: JoinScreenProps) {
+  const [name, setName] = useState("")
+  const [roomCode, setRoomCode] = useState("")
+  const [maxPlayers, setMaxPlayers] = useState(4)
+  const [mode, setMode] = useState<"select" | "create" | "join">("select")
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+
+  useState(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search)
+      const room = params.get("room")
+      if (room) {
+        setRoomCode(room)
+        setMode("join")
+      }
+    }
+  })
+
+  const getConnectionError = (err: unknown): string => {
+    // ProgressEvent means network/connection failure
+    if (err && typeof err === 'object' && 'type' in err && (err as {type: string}).type === 'error') {
+      return "Cannot connect to game server. Make sure the Colyseus server is running on localhost:2567 (see /server folder for setup instructions)."
+    }
+    if (err instanceof Error) {
+      if (err.message.includes('WebSocket') || err.message.includes('connection')) {
+        return "Cannot connect to game server. Make sure the Colyseus server is running."
+      }
+      return err.message
+    }
+    return "Failed to connect to server. Check that the game server is running."
+  }
+
+  const handleCreate = async () => {
+    if (!name.trim()) {
+      setError("Please enter your name")
+      {/* This should prompt the user to enter a name */}
+      return
+    }
+    setError("")
+    setLoading(true)
+    try {
+      await onCreateRoom(name.trim(), maxPlayers)
+    } catch (err) {
+      setError(getConnectionError(err))
+      setLoading(false)
+    }
+  }
+
+  const handleJoin = async () => {
+    if (!name.trim()) {
+      setError("Please enter your name")
+      {/* This should prompt the user to enter a name */}
+      return
+    }
+    if (!roomCode.trim()) {
+      setError("Please enter a room code")
+      return
+    }
+    setError("")
+    setLoading(true)
+    try {
+      await onJoinRoom(name.trim(), roomCode.trim())
+    } catch (err) {
+      setError(getConnectionError(err))
+      setLoading(false)
+    }
+  }
+}
+
+
+  export default function AstralMagicGame() {
   // Game mode: 'select' | 'single' | 'multi'
   const [gameMode, setGameMode] = useState<'select' | 'single' | 'multi'>('select')
   
@@ -63,7 +149,7 @@ export default function AstralMagicGame() {
     defaultZoom: 1,
     showZoomPanel: true,
     uiScale: 1,
-    glassOpacity: 0.85
+    glassOpacity: 0.65
   })
   const [settingsOpen, setSettingsOpen] = useState(false)
   
@@ -707,56 +793,53 @@ export default function AstralMagicGame() {
     }
     return null
   }
-
+const texts = [
+  "gavins",
+  "magic",
+]
+const mtexts = [
+  "online"
+]
   // Mode Selection Screen
-  if (gameMode === 'select') {
+if (gameMode === 'select') {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
-        <div className="text-center mb-10">
-          <div className="flex items-center justify-center gap-3 mb-3">
-            <svg className="w-10 h-10 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M14.5 17.5L3 6V3h3l11.5 11.5" />
-              <path d="M13 19l6-6" />
-              <path d="M16 16l4 4" />
-              <path d="M19 21a2 2 0 100-4 2 2 0 000 4z" />
-            </svg>
-            <h1 className="text-5xl font-black tracking-tight text-primary">AstralMagic</h1>
+      <div className="min-h-screen bg-background flex flex-row items-center justify-center p-8">
+        
+        {/* Inner wrapper to keep everything centered together */}
+        <div className="flex flex-row items-center gap-12">
+          
+          {/* Fixed-width container for the morphing text. 
+            Adjust w-48 (192px) or w-64 (256px) based on your longest word 
+          */}
+          <div className="w-70 flex justify-center flex-shrink-0">
+            <MorphingText texts={texts} className="text-6xl font-bold" />
           </div>
-          <p className="text-muted-foreground text-sm tracking-wider uppercase">Commander</p>
-        </div>
-        <div className="w-full max-w-md space-y-4">
-          <button
-            onClick={() => setGameMode('multi')}
-            className="w-full h-20 rounded-2xl liquid-glass-strong text-left px-6 flex items-center gap-4 hover:border-primary/50 transition-all border border-transparent"
-          >
-            <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
-              <svg className="w-6 h-6 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="M23 21v-2a4 4 0 00-3-3.87" />
-                <path d="M16 3.13a4 4 0 010 7.75" />
-              </svg>
-            </div>
-            <div>
-              <h3 className="text-lg font-bold">Multiplayer</h3>
-              <p className="text-sm text-muted-foreground">Play online with friends</p>
-            </div>
-          </button>
-          <button
-            onClick={() => setGameMode('single')}
-            className="w-full h-20 rounded-2xl liquid-glass text-left px-6 flex items-center gap-4 hover:border-primary/50 transition-all border border-transparent"
-          >
-            <div className="w-12 h-12 rounded-xl bg-secondary flex items-center justify-center">
-              <svg className="w-6 h-6 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
-              </svg>
-            </div>
-            <div>
-              <h3 className="text-lg font-bold">Single Player</h3>
-              <p className="text-sm text-muted-foreground">Practice or test decks locally</p>
-            </div>
-          </button>
+          
+          {/* Buttons */}
+          <div className="flex flex-row items-center gap-4">
+            <button
+              onClick={() => setGameMode('multi')}
+              className="h-16 px-6 rounded-4xl flex items-center gap-3 hover:border-foreground/50 transition-all border border-transparent whitespace-nowrap"
+            >
+              <GiAbstract023 className="w-8 h-8" />
+              <span className="text-lg font-bold">online</span>
+            </button>
+              {/* Right here needs to be the entry box for Room Code and a small button next to it to join */}
+            <Button
+              onClick={handleCreate}
+              disabled={loading}
+              className="w-full h-14 text-lg font-bold bg-primary hover:bg-primary/90"
+            >
+            </Button>
+            <button
+              onClick={() => setGameMode('single')}
+              className="h-16 px-6 rounded-4xl flex items-center gap-3 hover:bg-foreground/5 border-foreground/50 transition-all border border-transparent whitespace-nowrap"
+            >
+              <GiAlienBug className="w-8 h-8" />
+              <span className="text-lg font-bold">debug</span>
+            </button>
+          </div>
+
         </div>
       </div>
     )
