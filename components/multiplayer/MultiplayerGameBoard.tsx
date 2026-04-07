@@ -5,6 +5,7 @@ import { PlayerMat } from '@/components/game/player-mat'
 import { CenterDivider } from '@/components/game/center-divider'
 import { ContextMenu } from '@/components/game/context-menu'
 import { ZoneViewer } from '@/components/game/zone-viewer'
+import { ActionLogPopdown } from '@/components/game/action-log-popdown'
 import { PALETTES, type CardInstance, type Player, type ZoneType } from '@/lib/game-types'
 import { lookupCard } from '@/lib/game-data'
 import { GameActions } from '@/lib/socket-client'
@@ -83,10 +84,12 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
   const [zoom, setZoom] = useState<Record<number, number>>({})
   const [pan, setPan] = useState<Record<number, { x: number; y: number }>>({})
   const [hoverCard, setHoverCard] = useState<CardInstance | null>(null)
+  const [hoverPos, setHoverPos] = useState({ x: 0, y: 0 })
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; iid: string; zone: ZoneType } | null>(null)
   const [zoneViewer, setZoneViewer] = useState<{ pid: number; zone: ZoneType } | null>(null)
   const [dragIid, setDragIid] = useState<string | null>(null)
   const [dragFrom, setDragFrom] = useState<string>('')
+  const [logOpen, setLogOpen] = useState(false)
 
   // Track mat refs for drop calculations
   const matRefs = useRef<Record<number, HTMLDivElement | null>>({})
@@ -146,6 +149,15 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
     setDragFrom('hand')
     console.log('[v0] Starting drag from hand:', iid)
   }, [])
+
+  // Track mouse position for hover card preview
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (hoverCard) setHoverPos({ x: e.clientX, y: e.clientY })
+    }
+    window.addEventListener('mousemove', handleMouseMove)
+    return () => window.removeEventListener('mousemove', handleMouseMove)
+  }, [hoverCard])
 
   // Setup global mouse up handler for drops
   useEffect(() => {
@@ -268,17 +280,30 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
   const layout = getPlayerLayout()
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-background overflow-hidden">
-      {/* Top players */}
-      <div className="flex-1 flex">
-        {layout.top.map((player) => (
-          <div key={player.pid} className="flex-1 relative">
+    <div className="h-screen w-screen flex flex-col bg-background overflow-hidden relative select-none">
+      {/* All player mats — CenterDivider is absolute so stays out of flow */}
+      <div className="flex-1 flex flex-col gap-1 p-1 overflow-hidden min-h-0">
+        {/* Top players (opponents) */}
+        {layout.top.length > 0 && (
+          <div
+            className="flex gap-1"
+            style={{ flex: 1, minHeight: 0 }}
+          >
+            {layout.top.map((player) => (
+              <PlayerMat key={player.pid} {...makePlayerMatProps(player, player.pid)} />
+            ))}
+          </div>
+        )}
+
+        {/* Bottom player (local) */}
+        {layout.bottom.map((player) => (
+          <div key={player.pid} className="flex flex-1 min-h-0">
             <PlayerMat {...makePlayerMatProps(player, player.pid)} />
           </div>
         ))}
       </div>
 
-      {/* Center action bar */}
+      {/* Center action bar — absolutely positioned overlay, same as singleplayer */}
       <CenterDivider
         players={players}
         turn={gameState.turn}
@@ -286,10 +311,10 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
         localPid={localPid}
         hasDrawnInitial={players[localPid]?.hand.length > 0}
         zoom={getZoom(localPid)}
-        logOpen={false}
+        logOpen={logOpen}
         onPassTurn={() => GameActions.passTurn()}
         onSettings={() => {}}
-        onLog={() => {}}
+        onLog={() => setLogOpen(o => !o)}
         onDice={() => {}}
         onCoin={() => {}}
         onCmdDmg={(_pid) => {}}
@@ -298,15 +323,6 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
         onDraw7={(_pid) => GameActions.drawCards(7)}
         onUntapAll={(_pid) => GameActions.untapAll()}
       />
-
-      {/* Bottom players (local) */}
-      <div className="flex-1 flex">
-        {layout.bottom.map((player) => (
-          <div key={player.pid} className="flex-1 relative">
-            <PlayerMat {...makePlayerMatProps(player, player.pid)} />
-          </div>
-        ))}
-      </div>
 
       {/* Context Menu */}
       {contextMenu && (
@@ -346,25 +362,33 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
         />
       )}
 
-      {/* Hover card preview */}
-      {hoverCard && (
-        <div className="fixed bottom-4 right-4 w-64 liquid-glass-readable rounded-xl p-4 z-50 pointer-events-none">
-          <h4 className="font-bold text-foreground mb-1">{hoverCard.name}</h4>
-          {hoverCard.manaCost && (
-            <p className="text-xs text-muted-foreground mb-2">{hoverCard.manaCost}</p>
-          )}
-          <p className="text-xs text-foreground/80 leading-relaxed">{hoverCard.oracle}</p>
-        </div>
-      )}
+      {/* Action log popdown — same component as singleplayer */}
+      <ActionLogPopdown
+        entries={gameState.log}
+        open={logOpen}
+        onClose={() => setLogOpen(false)}
+      />
 
-      {/* Action Log */}
-      {gameState.log.length > 0 && (
-        <div className="fixed top-4 right-4 w-72 max-h-48 overflow-y-auto liquid-glass-readable rounded-xl p-3 z-40">
-          <h4 className="font-bold text-sm text-foreground mb-2">Action Log</h4>
-          <div className="space-y-1">
-            {gameState.log.slice(0, 20).map((entry, i) => (
-              <p key={i} className="text-xs text-muted-foreground">{entry}</p>
-            ))}
+      {/* Cursor-following card hover preview */}
+      {hoverCard && (
+        <div
+          className="fixed z-[9998] pointer-events-none"
+          style={{
+            left: Math.min(hoverPos.x + 20, (typeof window !== 'undefined' ? window.innerWidth : 1200) - 280),
+            top: Math.max(20, Math.min(hoverPos.y - 100, (typeof window !== 'undefined' ? window.innerHeight : 800) - 200)),
+          }}
+        >
+          <div className="liquid-glass-readable px-3 py-2.5 rounded-xl max-w-[220px]">
+            <p className="text-sm font-semibold text-foreground">{hoverCard.name}</p>
+            {hoverCard.manaCost && (
+              <p className="text-xs text-muted-foreground mt-0.5">{hoverCard.manaCost}</p>
+            )}
+            {hoverCard.typeLine && (
+              <p className="text-xs text-muted-foreground/80 mt-0.5">{hoverCard.typeLine}</p>
+            )}
+            {hoverCard.oracle && (
+              <p className="text-xs text-foreground/80 leading-relaxed mt-1">{hoverCard.oracle}</p>
+            )}
           </div>
         </div>
       )}
