@@ -40,7 +40,7 @@ import { DamageToastContainer } from '@/components/game/damage-toast'
 // Multiplayer
 import { MultiplayerWrapper } from '@/components/multiplayer/MultiplayerWrapper'
 import { MultiplayerGameBoard } from '@/components/multiplayer/MultiplayerGameBoard'
-import { GameActions } from '@/lib/colyseus-client'
+import { GameActions } from '@/lib/socket-client'
 import type { GameState as MPGameState } from '@/lib/multiplayer-types'
 import { cn } from "@/lib/utils"
 

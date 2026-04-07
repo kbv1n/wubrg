@@ -1,15 +1,16 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
-import { Room } from "colyseus.js"
+import { useState, useEffect, useRef, useCallback } from "react"
+import { Socket } from "socket.io-client"
 import { LobbyScreen } from "./LobbyScreen"
 import {
+  openSocket,
   createRoom,
   joinRoom,
-  leaveRoom,
-  setCurrentRoom,
-  schemaToGameState
-} from "@/lib/colyseus-client"
+  closeSocket,
+  setActiveSocket,
+  convertServerState,
+} from "@/lib/socket-client"
 import type { GameState } from "@/lib/multiplayer-types"
 
 interface MultiplayerWrapperProps {
@@ -19,143 +20,137 @@ interface MultiplayerWrapperProps {
     isMultiplayer: true
   }) => React.ReactNode
   onBack: () => void
-  initialAction?: { type: 'create'; maxPlayers: number } | { type: 'join'; roomCode: string } | null
+  initialAction:
+    | { type: "create"; maxPlayers: number }
+    | { type: "join"; roomCode: string }
+    | null
 }
 
-type ConnectionState = "disconnected" | "connecting" | "lobby" | "playing"
+type Phase = "connecting" | "lobby" | "playing" | "error"
 
 export function MultiplayerWrapper({ children, onBack, initialAction }: MultiplayerWrapperProps) {
-  const [connectionState, setConnectionState] = useState<ConnectionState>("disconnected")
-  const [gameState, setGameState] = useState<GameState | null>(null)
-  const [localPlayerId, setLocalPlayerId] = useState<string>("")
-  const [error, setError] = useState<string>("")
-  const hasTriedInitialAction = useRef(false)
+  const [phase, setPhase]               = useState<Phase>("connecting")
+  const [gameState, setGameState]       = useState<GameState | null>(null)
+  const [localPlayerId, setLocalPlayerId] = useState("")
+  const [error, setError]               = useState("")
 
-  const setupRoomListeners = useCallback((room: Room) => {
-    setLocalPlayerId(room.sessionId)
+  // Socket owned here — not a global singleton
+  const socketRef = useRef<Socket | null>(null)
 
-    // Read initial state immediately — onStateChange.once misses it because
-    // Colyseus resolves client.create() after the first patch is already applied.
-    if (room.state) {
-      const gs = schemaToGameState(room.state)
-      setGameState(gs)
-      setConnectionState(gs.phase === "lobby" ? "lobby" : "playing")
+  // ── Leave helper (used by lobby "Leave" button and back navigation) ────────
+  const handleLeave = useCallback(() => {
+    if (socketRef.current) {
+      closeSocket(socketRef.current)
+      socketRef.current = null
     }
-
-    room.onStateChange((state) => {
-      const gs = schemaToGameState(state)
-      setGameState(gs)
-      if (gs.phase === "playing") {
-        setConnectionState("playing")
-      } else if (gs.phase === "lobby") {
-        setConnectionState("lobby")
-      }
-    })
-
-    room.onLeave((code) => {
-      console.log("[Colyseus] Left room with code:", code)
-      setCurrentRoom(null)
-      if (code !== 1000) {
-        setError("Disconnected from server")
-        setConnectionState("disconnected")
-      }
-    })
-
-    room.onError((code, message) => {
-      console.error("[Colyseus] Room error:", code, message)
-      setError(message || "Connection error")
-    })
-  }, [])
-
-  const formatConnectionError = (err: unknown): string => {
-    if (err && typeof err === 'object' && 'type' in err) {
-      return "Cannot connect to game server"
-    }
-    if (err instanceof Error) return err.message
-    return "Connection failed"
-  }
-
-  const handleCreateRoom = useCallback(async (name: string, maxPlayers: number) => {
-    setError("")
-    setConnectionState("connecting")
-    try {
-      const room = await createRoom(name, maxPlayers)
-      setupRoomListeners(room)
-    } catch (err) {
-      console.error("[Colyseus] Create room error:", err)
-      setError(formatConnectionError(err))
-      setConnectionState("disconnected")
-      throw err
-    }
-  }, [setupRoomListeners])
-
-  const handleJoinRoom = useCallback(async (name: string, roomId: string) => {
-    setError("")
-    setConnectionState("connecting")
-    try {
-      const room = await joinRoom(roomId, name)
-      setupRoomListeners(room)
-    } catch (err) {
-      console.error("[Colyseus] Join room error:", err)
-      setError(formatConnectionError(err))
-      setConnectionState("disconnected")
-      throw err
-    }
-  }, [setupRoomListeners])
-
-  const handleLeave = async () => {
-    await leaveRoom()
-    setGameState(null)
-    setLocalPlayerId("")
-    setConnectionState("disconnected")
+    setActiveSocket(null)
     if (typeof window !== "undefined") {
       window.history.replaceState({}, "", window.location.pathname)
     }
     onBack()
-  }
+  }, [onBack])
 
-  // Auto-connect based on initialAction from the select screen
+  // ── Main connection effect ─────────────────────────────────────────────────
+  // Uses a `cancelled` flag — the correct React pattern for async effects.
+  // React StrictMode fires mount→cleanup→mount in development. On cleanup,
+  // `cancelled` becomes true and any in-flight socket is discarded. The second
+  // mount starts fresh. In production this runs exactly once.
   useEffect(() => {
-    if (!initialAction || hasTriedInitialAction.current || connectionState !== "disconnected") return
-    hasTriedInitialAction.current = true
-    // Pass empty name — server will assign "Player 1", "Player 2", etc.
-    if (initialAction.type === 'create') {
-      handleCreateRoom("", initialAction.maxPlayers).catch(() => {})
-    } else {
-      handleJoinRoom("", initialAction.roomCode).catch(() => {})
+    if (!initialAction) return
+
+    let cancelled = false
+    let socket: Socket | null = null
+
+    async function connect() {
+      try {
+        // Step 1: open a TCP/WebSocket connection to the server
+        socket = await openSocket()
+        if (cancelled) { socket.disconnect(); return }
+
+        // Step 2: register ongoing state listener before joining any room
+        socket.on("state_sync", (raw: Record<string, unknown>) => {
+          if (cancelled) return
+          const state = convertServerState(raw)
+          setGameState(state)
+          setPhase(state.phase === "playing" ? "playing" : "lobby")
+        })
+
+        socket.on("disconnect", (reason: string) => {
+          if (cancelled) return
+          // "io client disconnect" means we called socket.disconnect() ourselves
+          if (reason === "io client disconnect") return
+          setError("Lost connection to the server")
+          setPhase("error")
+        })
+
+        // Step 3: create or join a room — server broadcasts state_sync on success
+        if (initialAction && initialAction.type === "create") {
+          await createRoom(socket, "", initialAction.maxPlayers)
+        } else if (initialAction && initialAction.type === "join") {
+          await joinRoom(socket, initialAction.roomCode, "")
+        }
+
+        if (cancelled) { socket.disconnect(); return }
+
+        // Step 4: store socket and make it available to GameActions
+        socketRef.current = socket
+        setLocalPlayerId(socket.id!)
+        setActiveSocket(socket)
+        // Phase transitions to "lobby" when state_sync arrives (see listener above)
+
+      } catch (err) {
+        if (cancelled) return
+        setError(err instanceof Error ? err.message : "Failed to connect")
+        setPhase("error")
+        socket?.disconnect()
+      }
     }
-  }, [initialAction, connectionState, handleCreateRoom, handleJoinRoom])
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => { leaveRoom() }
-  }, [])
+    connect()
 
-  if (connectionState === "disconnected" || connectionState === "connecting") {
+    // Cleanup: fires on unmount (and on StrictMode simulated unmount in dev)
+    return () => {
+      cancelled = true
+      socket?.disconnect()
+      if (socketRef.current === socket) {
+        socketRef.current = null
+        setActiveSocket(null)
+      }
+    }
+  }, [initialAction]) // Re-runs if the action changes (e.g. user switches from create to join)
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+
+  if (phase === "connecting") {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          {connectionState === "connecting" ? (
-            <>
-              <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-              <p className="text-muted-foreground">
-                {initialAction?.type === 'create' ? 'Creating room...' : 'Joining room...'}
-              </p>
-            </>
-          ) : error ? (
-            <>
-              <p className="text-destructive mb-4">{error}</p>
-              <button onClick={onBack} className="text-primary underline">Back to menu</button>
-            </>
-          ) : (
-            <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
-          )}
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">
+            {initialAction?.type === "create" ? "Creating room…" : "Joining room…"}
+          </p>
         </div>
       </div>
     )
   }
 
-  if (connectionState === "lobby" && gameState) {
+  if (phase === "error") {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <p className="text-destructive font-medium">{error || "Something went wrong"}</p>
+          <button
+            onClick={onBack}
+            className="text-primary underline text-sm"
+          >
+            Back to menu
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (phase === "lobby" && gameState) {
     return (
       <LobbyScreen
         gameState={gameState}
@@ -165,21 +160,10 @@ export function MultiplayerWrapper({ children, onBack, initialAction }: Multipla
     )
   }
 
-  if (connectionState === "playing" && gameState) {
-    return (
-      <>
-        {children({ gameState, localPlayerId, isMultiplayer: true })}
-      </>
-    )
+  if (phase === "playing" && gameState) {
+    return <>{children({ gameState, localPlayerId, isMultiplayer: true })}</>
   }
 
-  return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="text-center">
-        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-muted-foreground">Connecting...</p>
-        {error && <p className="text-destructive text-sm mt-2">{error}</p>}
-      </div>
-    </div>
-  )
+  // Shouldn't be reached — guard for unexpected states
+  return null
 }

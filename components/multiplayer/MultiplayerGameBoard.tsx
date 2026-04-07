@@ -5,9 +5,9 @@ import { PlayerMat } from '@/components/game/player-mat'
 import { CenterDivider } from '@/components/game/center-divider'
 import { ContextMenu } from '@/components/game/context-menu'
 import { ZoneViewer } from '@/components/game/zone-viewer'
-import { PALETTES, type CardInstance, type Player } from '@/lib/game-types'
+import { PALETTES, type CardInstance, type Player, type ZoneType } from '@/lib/game-types'
 import { lookupCard } from '@/lib/game-data'
-import { GameActions } from '@/lib/colyseus-client'
+import { GameActions } from '@/lib/socket-client'
 import type { GameState, CardState as MPCardState, PlayerState as MPPlayerState } from '@/lib/multiplayer-types'
 import { cn } from '@/lib/utils'
 
@@ -83,8 +83,8 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
   const [zoom, setZoom] = useState<Record<number, number>>({})
   const [pan, setPan] = useState<Record<number, { x: number; y: number }>>({})
   const [hoverCard, setHoverCard] = useState<CardInstance | null>(null)
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; iid: string; zone: string } | null>(null)
-  const [zoneViewer, setZoneViewer] = useState<{ pid: number; zone: string } | null>(null)
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; iid: string; zone: ZoneType } | null>(null)
+  const [zoneViewer, setZoneViewer] = useState<{ pid: number; zone: ZoneType } | null>(null)
   const [dragIid, setDragIid] = useState<string | null>(null)
   const [dragFrom, setDragFrom] = useState<string>('')
 
@@ -136,7 +136,7 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
   // Handle card right click (context menu)
   const handleCardRC = useCallback((e: React.MouseEvent, iid: string, zone: string) => {
     e.preventDefault()
-    setContextMenu({ x: e.clientX, y: e.clientY, iid, zone })
+    setContextMenu({ x: e.clientX, y: e.clientY, iid, zone: zone as ZoneType })
   }, [])
 
   // Handle hand card mouse down
@@ -241,7 +241,7 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
     onCardRC: handleCardRC,
     onHover: (card: CardInstance) => setHoverCard(card),
     onHL: () => setHoverCard(null),
-    onZone: (zone: string) => setZoneViewer({ pid: idx, zone }),
+    onZone: (zone: string) => setZoneViewer({ pid: idx, zone: zone as ZoneType }),
     onHandCardMD: handleHandCardMD,
     isHandDragOver: dragIid !== null && dragFrom !== 'hand',
     matRef: (el: HTMLDivElement | null) => { matRefs.current[idx] = el },
@@ -286,16 +286,17 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
         localPid={localPid}
         hasDrawnInitial={players[localPid]?.hand.length > 0}
         zoom={getZoom(localPid)}
+        logOpen={false}
         onPassTurn={() => GameActions.passTurn()}
         onSettings={() => {}}
         onLog={() => {}}
         onDice={() => {}}
         onCoin={() => {}}
-        onCmdDmg={(pid) => {}}
-        onLife={(pid, delta) => GameActions.changeLife(delta)}
-        onDraw={(pid) => GameActions.drawCards(1)}
-        onDraw7={(pid) => GameActions.drawCards(7)}
-        onUntapAll={(pid) => GameActions.untapAll()}
+        onCmdDmg={(_pid) => {}}
+        onLife={(_pid, delta) => GameActions.changeLife(delta)}
+        onDraw={(_pid) => GameActions.drawCards(1)}
+        onDraw7={(_pid) => GameActions.drawCards(7)}
+        onUntapAll={(_pid) => GameActions.untapAll()}
       />
 
       {/* Bottom players (local) */}
@@ -322,9 +323,8 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
             return [...player.battlefield, ...player.hand, ...player.graveyard].find(c => c.iid === contextMenu.iid) ?? null
           })()}
           zone={contextMenu.zone}
-          playerPalette={PALETTES[localPid % PALETTES.length]}
-          onAction={handleContextAction}
-          onClose={() => setContextMenu(null)}
+          pal={PALETTES[localPid % PALETTES.length]}
+          onAction={(action) => { handleContextAction(action); setContextMenu(null) }}
         />
       )}
 
@@ -334,10 +334,13 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
           player={players[zoneViewer.pid]}
           zone={zoneViewer.zone}
           onClose={() => setZoneViewer(null)}
-          onMoveCard={(iid, toZone, x, y) => {
+          onMove={(iid, toZone) => {
             console.log('[v0] ZoneViewer move:', iid, 'to', toZone)
-            GameActions.moveCard(iid, toZone, x, y)
+            GameActions.moveCard(iid, toZone, 0, 0)
           }}
+          onRC={(_e, _card) => {}}
+          onScry={(_n) => {}}
+          onMill={(_n) => {}}
           onHover={setHoverCard}
           onHL={() => setHoverCard(null)}
         />
