@@ -54,9 +54,8 @@ export default function AstralMagicGame() {
     { type: 'create'; maxPlayers: number } | { type: 'join'; roomCode: string } | null
   >(null)
   const [roomCode, setRoomCode] = useState("")
-  const [maxPlayers, setMaxPlayers] = useState(4)
-  const [showCreateOptions, setShowCreateOptions] = useState(false)
-  
+  const [showJoinOptions, setShowJoinOptions] = useState(false)
+
   // Screen state
   const [screen, setScreen] = useState<ScreenType>('setup')
   const [nPlayers, setNP] = useState(4)
@@ -89,7 +88,7 @@ export default function AstralMagicGame() {
   }, [])
 
   const handleCreateRoom = () => {
-    setMultiplayerAction({ type: 'create', maxPlayers })
+    setMultiplayerAction({ type: 'create', maxPlayers: 6 })
     setGameMode('multi')
   }
 
@@ -737,7 +736,7 @@ export default function AstralMagicGame() {
     return null
   }
 const texts = [
-  "wubrg",
+  "wubrg"
 ]
   // Mode Selection Screen
 if (gameMode === 'select') {
@@ -750,82 +749,68 @@ if (gameMode === 'select') {
           {/* Fixed-width container for the morphing text. 
             Adjust w-48 (192px) or w-64 (256px) based on your longest word 
           */}
-          <div className="w-70 flex justify-center flex-shrink-0">
+          <div className="w-90 flex justify-center flex-shrink-2">
             <MorphingText texts={texts} className="text-6xl font-bold" />
           </div>
           
           {/* Buttons */}
           <div className="flex flex-row items-center gap-4">
-            <div className="relative">               
             <button
-              onClick={() => setShowCreateOptions(!showCreateOptions)}
+              onClick={handleCreateRoom}
               className="h-16 px-6 rounded-4xl flex items-center gap-3 hover:border-foreground/50 transition-all border border-transparent whitespace-nowrap"
             >
               <GiCrownOfThorns className="w-8 h-8" />
               <span className="text-lg font-bold">host</span>
             </button>
-            {/* Create Room Button */}
-           
-          {showCreateOptions && (
-            <div className="absolute top-full mt-2 left-0 bg-card border border-border rounded-xl p-3 shadow-xl z-50 min-w-[200px]">
-              <p className="text-sm text-muted-foreground mb-2">max Players</p>
-              <div className="grid grid-cols-5 gap-1 mb-3">
-                {[2, 3, 4, 5, 6].map((num) => (
-                  <button
-                    key={num}
-                    onClick={() => setMaxPlayers(num)}
-                    className={cn(
-                      "h-10 rounded-lg font-bold text-sm transition-all",
-                      maxPlayers === num
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-secondary/50 hover:bg-secondary"
-                    )}
-                  >
-                    {num}
-                  </button>
-                ))}
-              </div>
-              <Button onClick={handleCreateRoom} className="w-full h-10 font-bold">
-                Create Room
-              </Button>
-            </div>
-          )}
-        </div>
         
         {/* Join Room Input */}
-        <div className="flex items-center gap-2">
-          <GiFootTrip className="w-8 h-8" />
-          <Input
-            value={roomCode}
-            onChange={(e) => setRoomCode(e.target.value)}
-            placeholder="Room code..."
-            className="h-8 w-16  text-center font-mono text-lg"
-            onKeyDown={(e) => e.key === 'Enter' && roomCode.trim() && handleJoinRoom()}
-          />
+        <div className="relative flex items-center gap-2">
           <button
-            onClick={handleJoinRoom}
-            disabled={!roomCode.trim()}
-            className={cn(
-              "h-7 px-2 rounded-2xl flex items-center gap-2 transition-all border",
-              roomCode.trim() ? "hover:bg-foreground/5 border-foreground/20" : "opacity-50 cursor-not-allowed"
-            )}
+            onClick={() => setShowJoinOptions(!showJoinOptions)}
+            className="h-16 px-6 rounded-4xl flex items-center gap-3 hover:border-foreground/50 transition-all border border-transparent whitespace-nowrap"
           >
-            <ArrowRight className="w-5 h-5" />
+            <GiFootTrip className="w-8 h-8" />
+            <span className="text-lg font-bold">join</span>
           </button>
+          {showJoinOptions && (
+            <div className="absolute top-full mt-2 left-0 bg-background border border-border rounded-xl p-3 shadow-x1 z-50 min-w-[100px]">
+              <Input
+                value={roomCode}
+                onChange={(e) => setRoomCode(e.target.value)}
+                placeholder="room code"
+                className="h-8 w-full text-center bg-primary font-mono text-lg mb-3"
+                onKeyDown={(e) => e.key === 'Enter' && roomCode.trim() && handleJoinRoom()}
+                autoFocus
+              />
+              <button
+                onClick={handleJoinRoom}
+                disabled={!roomCode.trim()}
+                className={cn(
+                  "w-full h-8 px-2 rounded-2xl flex items-center justify-center gap-2 transition-all border",
+                  roomCode.trim() ? "hover:bg-foreground/5 border-foreground/20" : "opacity-50 cursor-not-allowed"
+                )}
+              >
+                <span className="text-sm">connect</span>
+              </button>
+            </div>
+          )}
         </div>
             <button
               onClick={() => setGameMode('single')}
               className="h-16 px-6 rounded-4xl flex items-center gap-3 hover: border-foreground/50 transition-all border border-transparent whitespace-nowrap"
             >
-              <GiAlienBug className="w-8 h-8" />
+              <GiAlienBug className="w-8 h-8"/>
               <span className="text-lg font-bold">debug</span>
             </button>
           </div>
 
         </div>
+        
       </div>
+      
     )
   }
+  
 
   // Multiplayer Mode
   if (gameMode === 'multi') {

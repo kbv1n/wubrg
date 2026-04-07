@@ -44,6 +44,7 @@ export function CenterDivider({
   onDraw7,
   onUntapAll,
 }: ActionBarProps) {
+  if (!players.length || !players[0]) return null
   const currentPlayer = players[turn] || players[0]
   const pal = currentPlayer.pal
   const mainPlayer = players[localPid] || players[0]

@@ -34,17 +34,21 @@ export function MultiplayerWrapper({ children, onBack, initialAction }: Multipla
   const setupRoomListeners = useCallback((room: Room) => {
     setLocalPlayerId(room.sessionId)
 
-    room.onStateChange.once((state) => {
-      const gs = schemaToGameState(state)
+    // Read initial state immediately — onStateChange.once misses it because
+    // Colyseus resolves client.create() after the first patch is already applied.
+    if (room.state) {
+      const gs = schemaToGameState(room.state)
       setGameState(gs)
       setConnectionState(gs.phase === "lobby" ? "lobby" : "playing")
-    })
+    }
 
     room.onStateChange((state) => {
       const gs = schemaToGameState(state)
       setGameState(gs)
       if (gs.phase === "playing") {
         setConnectionState("playing")
+      } else if (gs.phase === "lobby") {
+        setConnectionState("lobby")
       }
     })
 

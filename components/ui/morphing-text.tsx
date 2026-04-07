@@ -4,8 +4,8 @@ import { useCallback, useEffect, useRef } from "react"
 
 import { cn } from "@/lib/utils"
 
-const morphTime = 1.5
-const cooldownTime = 0.5
+const morphTime = 1.4
+const cooldownTime = 0.1
 
 const useMorphingText = (texts: string[]) => {
   const textIndexRef = useRef(0)
