@@ -55,8 +55,8 @@ export default function RootLayout({
       <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased`}>
         <ToastProvider>
           {children}
+          <Analytics />
         </ToastProvider>
-        <Analytics />
       </body>
     </html>
   )
