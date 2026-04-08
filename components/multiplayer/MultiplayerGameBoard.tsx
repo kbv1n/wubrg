@@ -6,14 +6,15 @@ import { CenterDivider } from '@/components/game/center-divider'
 import { ContextMenu } from '@/components/game/context-menu'
 import { ZoneViewer } from '@/components/game/zone-viewer'
 import { ActionLogPopdown } from '@/components/game/action-log-popdown'
+import { LoadingScreen } from '@/components/game/loading-screen'
 import { PALETTES, type CardInstance, type Player, type ZoneType } from '@/lib/game-types'
-import { lookupCard } from '@/lib/game-data'
+import { lookupCard, fetchScryfall } from '@/lib/game-data'
 import { GameActions } from '@/lib/socket-client'
-import type { GameState, CardState as MPCardState, PlayerState as MPPlayerState } from '@/lib/multiplayer-types'
+import type { MPGameState, CardState as MPCardState, PlayerState as MPPlayerState } from '@/lib/game-types'
 import { cn } from '@/lib/utils'
 
 interface MultiplayerGameBoardProps {
-  gameState: GameState
+  gameState: MPGameState
   localPlayerId: string
 }
 
@@ -75,6 +76,30 @@ function mpPlayerToPlayer(mpPlayer: MPPlayerState, idx: number): Player {
 }
 
 export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGameBoardProps) {
+  // ── Scryfall card-data loading ─────────────────────────────────────────────
+  // Fetch card art / text for every cardId in all players' zones before
+  // rendering the board.  Runs once on mount; failures are soft (game still shows).
+  const [cardsLoaded, setCardsLoaded] = useState(false)
+  const [loadProgress, setLoadProgress] = useState({ done: 0, total: 0, current: '' })
+  const hasFetched = useRef(false)
+
+  useEffect(() => {
+    if (hasFetched.current) return
+    hasFetched.current = true
+
+    const names = new Set<string>()
+    for (const p of gameState.players.values()) {
+      const zones = [...p.battlefield, ...p.hand, ...p.library, ...p.graveyard, ...p.exile, ...p.commandZone]
+      for (const c of zones) names.add(c.cardId)
+    }
+
+    fetchScryfall([...names], (done, total, current) => {
+      setLoadProgress({ done, total: Math.max(total, 1), current })
+    })
+      .catch(() => {/* soft fail */})
+      .finally(() => setCardsLoaded(true))
+  }, [])
+
   // UI State
   const [uiSettings] = useState({
     cardScale: 1,
@@ -108,6 +133,9 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
   const setPlayerPan = (pid: number, p: { x: number; y: number }) => setPan(prev => ({ ...prev, [pid]: p }))
 
   // Handle card drop on battlefield
+  // Cards are positioned as PERCENTAGES (0–100) of the battlefield div.
+  // getBoundingClientRect() on the transformed inner div already reflects
+  // zoom/pan, so dividing by rect.width/height gives the correct percentage.
   const handleCardDrop = useCallback((e: MouseEvent, pid: number) => {
     if (!dragIid) return
 
@@ -115,18 +143,13 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
     if (!matEl) return
 
     const rect = matEl.getBoundingClientRect()
-    const currentZoom = getZoom(pid)
-    const currentPan = pan[pid] ?? { x: 0, y: 0 }
+    const x = Math.max(0, Math.min(95, ((e.clientX - rect.left) / rect.width) * 100))
+    const y = Math.max(0, Math.min(90, ((e.clientY - rect.top) / rect.height) * 100))
 
-    // Calculate position relative to mat, accounting for zoom and pan
-    const x = (e.clientX - rect.left - currentPan.x) / currentZoom
-    const y = (e.clientY - rect.top - currentPan.y) / currentZoom
-
-    console.log('[v0] Moving card to battlefield:', dragIid, 'x:', x, 'y:', y)
     GameActions.moveCard(dragIid, 'battlefield', x, y)
     setDragIid(null)
     setDragFrom('')
-  }, [dragIid, pan, getZoom])
+  }, [dragIid])
 
   // Handle card mouse down (start drag)
   const handleCardMD = useCallback((e: React.MouseEvent, iid: string, zone: string = 'battlefield') => {
@@ -278,6 +301,11 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
   }
 
   const layout = getPlayerLayout()
+
+  // Show loading screen while Scryfall data is being fetched
+  if (!cardsLoaded) {
+    return <LoadingScreen done={loadProgress.done} total={loadProgress.total} current={loadProgress.current} />
+  }
 
   return (
     <div className="h-screen w-screen flex flex-col bg-background overflow-hidden relative select-none">

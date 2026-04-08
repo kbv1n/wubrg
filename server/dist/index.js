@@ -20,13 +20,13 @@ app.use((0, cors_1.default)({
 app.use(express_1.default.json());
 // Health check endpoint
 app.get("/health", (req, res) => {
-    res.json({ status: "ok" });
+    res.json({ status: "ok", rooms: gameServer.matchMaker.stats.roomCount });
 });
 // List available rooms
 app.get("/rooms", async (req, res) => {
     try {
-        const rooms = await colyseus_1.matchMaker.query({ name: "game" });
-        res.json(rooms.map((room) => ({
+        const rooms = await gameServer.matchMaker.query({ name: "game" });
+        res.json(rooms.map(room => ({
             roomId: room.roomId,
             clients: room.clients,
             maxClients: room.maxClients,

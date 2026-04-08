@@ -42,7 +42,6 @@ class GameRoom extends colyseus_1.Room {
                 existingPlayer.odId = client.sessionId;
                 existingPlayer.connected = true;
                 this.addLog(`${existingPlayer.name} reconnected`);
-                this.syncState();
                 return;
             }
             throw new Error("Game already in progress");
@@ -62,8 +61,6 @@ class GameRoom extends colyseus_1.Room {
         this.state.players.set(client.sessionId, player);
         this.addLog(`${player.name} joined the lobby`);
         console.log(`[GameRoom] ${player.name} joined (${client.sessionId})`);
-        // Send full state to all clients as plain JSON
-        this.syncState();
     }
     onLeave(client, consented) {
         const player = this.state.players.get(client.sessionId);
@@ -86,12 +83,10 @@ class GameRoom extends colyseus_1.Room {
             // Reassign host if needed
             if (this.state.hostId === client.sessionId && this.state.players.size > 0) {
                 const newHost = this.state.playerOrder[0];
-                if (newHost) {
-                    this.state.hostId = newHost;
-                    const newHostPlayer = this.state.players.get(newHost);
-                    if (newHostPlayer) {
-                        this.addLog(`${newHostPlayer.name} is now the host`);
-                    }
+                this.state.hostId = newHost;
+                const newHostPlayer = this.state.players.get(newHost);
+                if (newHostPlayer) {
+                    this.addLog(`${newHostPlayer.name} is now the host`);
                 }
             }
         }
@@ -106,17 +101,12 @@ class GameRoom extends colyseus_1.Room {
                 }
             }, 5 * 60 * 1000);
         }
-        this.syncState();
     }
     handleMessage(client, message) {
         const player = this.state.players.get(client.sessionId);
         if (!player)
             return;
         switch (message.type) {
-            case "request_state":
-                // Send state to just this client
-                client.send("state_sync", this.serializePlainState());
-                return; // Don't broadcast, just respond to requester
             case "set_name":
                 player.name = message.name.slice(0, 20);
                 break;
@@ -197,79 +187,7 @@ class GameRoom extends colyseus_1.Room {
                 this.untapAll(player);
                 break;
         }
-        // Broadcast updated state after every mutation
-        this.syncState();
     }
-    // ---- State Sync (plain JSON, bypasses schema serialization) ----
-    syncState() {
-        this.broadcast("state_sync", this.serializePlainState());
-    }
-    serializePlainState() {
-        const players = {};
-        this.state.players.forEach((player, id) => {
-            players[id] = {
-                odId: player.odId,
-                name: player.name,
-                pid: player.pid,
-                life: player.life,
-                poison: player.poison,
-                colorIndex: player.colorIndex,
-                playmatUrl: player.playmatUrl,
-                ready: player.ready,
-                connected: player.connected,
-                deckText: player.deckText,
-                battlefield: this.serializeCards(player.battlefield),
-                hand: this.serializeCards(player.hand),
-                library: this.serializeCards(player.library),
-                graveyard: this.serializeCards(player.graveyard),
-                exile: this.serializeCards(player.exile),
-                commandZone: this.serializeCards(player.commandZone),
-                cmdDamage: this.serializeCmdDamage(player.cmdDamage),
-            };
-        });
-        const takenColors = [];
-        this.state.takenColors.forEach((c) => takenColors.push(c));
-        const log = [];
-        this.state.log.forEach((l) => log.push(l));
-        const playerOrder = [];
-        this.state.playerOrder.forEach((p) => playerOrder.push(p));
-        return {
-            phase: this.state.phase,
-            roomId: this.state.roomId,
-            hostId: this.state.hostId,
-            maxPlayers: this.state.maxPlayers,
-            turn: this.state.turn,
-            round: this.state.round,
-            players,
-            takenColors,
-            log,
-            playerOrder,
-        };
-    }
-    serializeCards(cards) {
-        const result = [];
-        cards.forEach((card) => {
-            result.push({
-                iid: card.iid,
-                cardId: card.cardId,
-                x: card.x,
-                y: card.y,
-                tapped: card.tapped,
-                faceDown: card.faceDown,
-                counters: card.counters,
-                zone: card.zone,
-            });
-        });
-        return result;
-    }
-    serializeCmdDamage(cmdDamage) {
-        const result = {};
-        cmdDamage.forEach((val, key) => {
-            result[key] = { dealt: val.dealt };
-        });
-        return result;
-    }
-    // ---- Deck Parsing ----
     parseDeck(player, deckText) {
         // Clear existing deck
         player.library.clear();
@@ -303,8 +221,7 @@ class GameRoom extends colyseus_1.Room {
         const cards = [...player.library];
         player.library.clear();
         for (const card of shuffle(cards)) {
-            if (card)
-                player.library.push(card);
+            player.library.push(card);
         }
         this.addLog(`${player.name} loaded deck (${player.library.length + player.commandZone.length} cards)`);
     }
@@ -331,8 +248,7 @@ class GameRoom extends colyseus_1.Room {
             this.drawCards(player, 7);
         }
         this.addLog("Game started!");
-        const firstPlayerId = this.state.playerOrder[0];
-        const firstPlayer = firstPlayerId ? this.state.players.get(firstPlayerId) : undefined;
+        const firstPlayer = this.state.players.get(this.state.playerOrder[0]);
         if (firstPlayer) {
             this.addLog(`${firstPlayer.name}'s turn`);
         }
@@ -346,7 +262,7 @@ class GameRoom extends colyseus_1.Room {
             const zone = player[zoneName];
             const idx = zone.toArray().findIndex(c => c.iid === iid);
             if (idx >= 0) {
-                card = zone[idx] ?? null;
+                card = zone[idx];
                 fromZone = zoneName;
                 zone.splice(idx, 1);
                 break;
@@ -426,8 +342,7 @@ class GameRoom extends colyseus_1.Room {
         const cards = [...player.library];
         player.library.clear();
         for (const card of shuffle(cards)) {
-            if (card)
-                player.library.push(card);
+            player.library.push(card);
         }
         this.addLog(`${player.name} shuffled their library`);
     }
@@ -438,16 +353,14 @@ class GameRoom extends colyseus_1.Room {
         this.addLog(`${player.name} untapped all permanents`);
     }
     passTurn() {
-        const currentPlayerId = this.state.playerOrder[this.state.turn];
-        const currentPlayer = currentPlayerId ? this.state.players.get(currentPlayerId) : undefined;
+        const currentPlayer = this.state.players.get(this.state.playerOrder[this.state.turn]);
         // Move to next player
         this.state.turn = (this.state.turn + 1) % this.state.playerOrder.length;
         // Check for new round
         if (this.state.turn === 0) {
             this.state.round++;
         }
-        const nextPlayerId = this.state.playerOrder[this.state.turn];
-        const nextPlayer = nextPlayerId ? this.state.players.get(nextPlayerId) : undefined;
+        const nextPlayer = this.state.players.get(this.state.playerOrder[this.state.turn]);
         if (currentPlayer && nextPlayer) {
             this.addLog(`${currentPlayer.name} passed turn to ${nextPlayer.name}`);
         }

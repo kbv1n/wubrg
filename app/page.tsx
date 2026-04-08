@@ -41,7 +41,7 @@ import { DamageToastContainer } from '@/components/game/damage-toast'
 import { MultiplayerWrapper } from '@/components/multiplayer/MultiplayerWrapper'
 import { MultiplayerGameBoard } from '@/components/multiplayer/MultiplayerGameBoard'
 import { GameActions } from '@/lib/socket-client'
-import type { GameState as MPGameState } from '@/lib/multiplayer-types'
+import type { MPGameState } from '@/lib/game-types'
 import { cn } from "@/lib/utils"
 
 

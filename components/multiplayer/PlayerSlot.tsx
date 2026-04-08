@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Check, Crown, Wifi, WifiOff } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { PALETTES } from "@/lib/game-types"
-import type { PlayerState } from "@/lib/multiplayer-types"
+import type { PlayerState } from "@/lib/game-types"
 
 interface PlayerSlotProps {
   player: PlayerState

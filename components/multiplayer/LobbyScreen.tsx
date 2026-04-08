@@ -11,14 +11,15 @@ import {
 import { cn } from "@/lib/utils"
 import { PlayerSlot } from "./PlayerSlot"
 import { GameActions } from "@/lib/socket-client"
-import type { GameState, PlayerState } from "@/lib/multiplayer-types"
+import type { MPGameState, PlayerState } from "@/lib/game-types"
 import { PACKAGED_PLAYMATS, isPackagedPlaymat } from "@/lib/playmats"
 import { MorphingText } from "../ui/morphing-text"
+import { GiMeshBall, GiAlienBug, GiBackstab, GiSpellBook  } from "react-icons/gi";
 
 const MOXFIELD_URL = "https://moxfield.com/decks/public?q=eyJmb3JtYXQiOiJjb21tYW5kZXJQcmVjb25zIn0%3D"
 
 interface LobbyScreenProps {
-  gameState: GameState
+  gameState: MPGameState
   localPlayerId: string
   roomId?: string
   onLeave: () => void
@@ -111,21 +112,13 @@ export function LobbyScreen({ gameState, localPlayerId, roomId, onLeave }: Lobby
       {/* Header */}
       <header className="border-b border-border/50 p-4">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3 inline-flex">
-          <MorphingText texts={texts} className="text-6xl font-bold" />
-
-            <div>
-              <p className="text-xs text-muted-foreground">
-                Room: <span className="font-mono select-all">{gameState.roomId}</span>
-              </p>
-            </div>
+          <div className="flex items-bottom gap-3 inline-flex">
+        <MorphingText texts={texts} className="scale-60" />
           </div>
-
           <div className="flex items-center gap-3">
             {/* Copy Link Button */}
             <Button
               onClick={handleCopyLink}
-              variant="outline"
               size="sm"
               className="gap-2"
             >
@@ -141,6 +134,11 @@ export function LobbyScreen({ gameState, localPlayerId, roomId, onLeave }: Lobby
                 </>
               )}
             </Button>
+            <div>
+              <p className="text-xs text-muted-background">
+                Room: <span className="font-mono select-all">{gameState.roomId}</span>
+              </p>
+            </div>
 
             {/* Leave Button */}
             <Button
@@ -149,7 +147,7 @@ export function LobbyScreen({ gameState, localPlayerId, roomId, onLeave }: Lobby
               size="sm"
               className="gap-2 text-destructive hover:text-destructive"
             >
-              <LogOut className="w-4 h-4" />
+              <GiBackstab className="w-4 h-4" />
               Leave
             </Button>
           </div>
@@ -198,12 +196,13 @@ export function LobbyScreen({ gameState, localPlayerId, roomId, onLeave }: Lobby
           {/* Right Column - Deck & Settings */}
           <div className="space-y-4">
             {/* Deck Input Section */}
-            <div className="rounded-xl border border-border/50 bg-card p-4">
+            <div className="rounded-xl border border-border/50 bg-background p-4">
               <button
                 onClick={() => setShowDeckInput(!showDeckInput)}
                 className="w-full flex items-center justify-between mb-3"
               >
-                <h3 className="font-bold">Import Your Deck</h3>
+                <GiSpellBook className="w-4 h-4" />
+                <h3 className="font-bold">import your deck</h3>
                 {showDeckInput ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               </button>
 
@@ -217,26 +216,26 @@ export function LobbyScreen({ gameState, localPlayerId, roomId, onLeave }: Lobby
                     className="flex items-center gap-2 mb-3 px-3 py-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors text-sm"
                   >
                     <ExternalLink className="w-4 h-4 flex-shrink-0" />
-                    <span>Browse Commander precon decks on Moxfield</span>
+                    <span>moxfield commander Decks</span>
                   </a>
 
-                  <p className="text-xs text-muted-foreground mb-2">
-                    Paste your deck list below. Use the format: <code className="bg-muted px-1 rounded">1 Card Name</code>.
-                    Add <code className="bg-muted px-1 rounded">*CMDR*</code> after commander names.
+                  <p className="text-xs text-muted-background mb-2">
+                    Use the format: <code className="border border-border/50 px-1 rounded">1 Card Name</code>.
+                    Add <code className="border border-border/50 px-1 rounded">*CMDR*</code> after commander names.
                   </p>
 
                   <Textarea
                     value={deckText}
                     onChange={(e) => setDeckText(e.target.value)}
                     placeholder={`1 Atraxa, Praetors' Voice *CMDR*\n1 Sol Ring\n1 Command Tower\n1 Llanowar Elves\n1 Swords to Plowshares\n...`}
-                    className="min-h-[180px] max-h-[280px] font-mono text-sm bg-background/50 mb-3 resize-none overflow-y-auto break-all whitespace-pre-wrap"
+                    className="min-h-[180px] max-h-[280px] text-sm bg-background/50 mb-3 resize-none overflow-y-auto break-all whitespace-pre-wrap"
                   />
                   <Button
                     onClick={handlePasteDeck}
                     disabled={!deckText.trim()}
                     className="w-full"
                   >
-                    Load Deck
+                    load
                   </Button>
 
                   {localPlayer && (localPlayer.library?.length || 0) > 0 && (
@@ -252,14 +251,14 @@ export function LobbyScreen({ gameState, localPlayerId, roomId, onLeave }: Lobby
             </div>
 
             {/* Playmat Section */}
-            <div className="rounded-xl border border-border/50 bg-card p-4">
+            <div className="rounded-xl border border-border/50 bg-background p-4">
               <button
                 onClick={() => setShowPlaymatPicker(!showPlaymatPicker)}
                 className="w-full flex items-center justify-between mb-3"
               >
+              <GiMeshBall className="w-4 h-4" />
                 <h3 className="font-bold flex items-center gap-2">
-                  <ImageIcon className="w-4 h-4" />
-                  Choose Playmat
+                playmats
                 </h3>
                 {showPlaymatPicker ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               </button>
@@ -341,7 +340,6 @@ export function LobbyScreen({ gameState, localPlayerId, roomId, onLeave }: Lobby
                   {!showCustomInput ? (
                     <Button
                       size="sm"
-                      variant="outline"
                       className="w-full h-8 text-xs gap-2 text-muted-foreground"
                       onClick={() => setShowCustomInput(true)}
                     >
@@ -403,46 +401,57 @@ export function LobbyScreen({ gameState, localPlayerId, roomId, onLeave }: Lobby
               )}
 
               {isHost && (
-                <Button
-                  onClick={handleStartGame}
-                  disabled={!allReady}
-                  className={cn(
-                    "w-full h-14 text-lg font-bold",
-                    allReady
-                      ? "bg-[#fb8f23] hover:bg-[#fb8f23]/90 text-white"
-                      : "bg-muted text-muted-foreground"
-                  )}
-                >
-                  <Play className="w-5 h-5 mr-2" />
-                  {allReady ? "Start Game" : `Waiting for ${players.filter(p => !p.ready).length} player(s)...`}
-                </Button>
+                <>
+                  <Button
+                    onClick={handleStartGame}
+                    disabled={!allReady}
+                    className={cn(
+                      "w-full h-14 text-lg font-bold",
+                      allReady
+                        ? "bg-[#fb8f23] hover:bg-[#fb8f23]/90 text-white"
+                        : "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    <Play className="w-5 h-5 mr-2" />
+                    {allReady ? "Start Game" : `Waiting for ${players.filter(p => !p.ready).length} player(s)...`}
+                  </Button>
+                </>
               )}
-
               {!isHost && allReady && (
                 <p className="text-center text-sm text-muted-foreground">
                   Waiting for host to start the game...
                 </p>
               )}
             </div>
+            {/* Game Log */}
+            {gameState.log.length > 0 && (
+                <div className="max-w-4xl mx-auto">
+                  <p className="text-xs text-muted-background mb-2">join-log</p>
+                  <div className="flex gap-2 overflow-x-auto pb-2">
+                    {gameState.log.slice(0, 5).map((msg, i) => (
+                      <span key={i} className="text-xs text-foreground/70 whitespace-nowrap px-2 py-1 bg-muted/3 rounded">
+                        {msg}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+            )}
           </div>
         </div>
+        {isHost && (
+          <footer className="max-w-4xl mx-auto mt-6 flex items-center justify-end gap-4">
+            {players.length < gameState.maxPlayers && (
+              <Button
+                  onClick={() => GameActions.fillBotsAndStart()}
+                  className="w-20 h-6 text-sm gap-2 bg-background text-muted-background hover:bg-foreground/80 hover:text-background"
+                  > 
+                <GiAlienBug className="w-4 h-4" />
+                        debug
+                </Button>
+                    )}
+          </footer>
+        )}
       </main>
-
-      {/* Game Log */}
-      {gameState.log.length > 0 && (
-        <footer className="border-t border-border/50 p-4">
-          <div className="max-w-4xl mx-auto">
-            <p className="text-xs text-muted-foreground mb-2">Recent Activity</p>
-            <div className="flex gap-2 overflow-x-auto pb-2">
-              {gameState.log.slice(0, 5).map((msg, i) => (
-                <span key={i} className="text-xs text-foreground/70 whitespace-nowrap px-2 py-1 bg-muted rounded">
-                  {msg}
-                </span>
-              ))}
-            </div>
-          </div>
-        </footer>
-      )}
     </div>
   )
 }

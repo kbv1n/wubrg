@@ -44,8 +44,6 @@ export declare class GameState extends Schema {
     playerOrder: ArraySchema<string>;
 }
 export type ClientMessage = {
-    type: "request_state";
-} | {
     type: "set_name";
     name: string;
 } | {

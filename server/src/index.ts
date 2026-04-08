@@ -152,7 +152,7 @@ io.on("connection", (socket) => {
   // All game actions are routed through a single handler to keep this clean
   const gameEvents = [
     "set_name", "set_color", "set_playmat", "paste_deck",
-    "ready", "unready", "start_game",
+    "ready", "unready", "start_game", "fill_bots_and_start",
     "move_card", "tap_card", "untap_card", "flip_card", "add_counter",
     "draw_cards", "mill_cards", "shuffle_library",
     "change_life", "change_poison",

@@ -5,7 +5,7 @@ import type { Player } from '@/lib/game-types'
 import { Backlight } from '@/components/ui/backlight'
 import { Settings, Dice6, Coins, ChevronDown, Minus, Plus, ArrowRight, RotateCcw, Layers } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-
+import { GiGluttonousSmile } from "react-icons/gi";
 interface ActionBarProps {
   players: Player[]
   turn: number
@@ -54,16 +54,14 @@ export function CenterDivider({
     <div className="absolute left-0 right-0 top-[calc(50%-20px)] -translate-y-1/2 z-50 pointer-events-none flex flex-col items-center gap-2 px-4">
       {/* Main Action Bar */}
       <div 
-        className="pointer-events-auto liquid-glass-readable rounded-2xl px-5 py-3 flex items-center gap-4"
+        className="pointer-events-auto liquid-glass-readable rounded-4xl px-5 py-3 flex items-center gap-4"
         style={{
           boxShadow: `0 8px 32px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.1)`,
         }}
       >
         {/* Logo */}
         <div className="flex items-center gap-2 pr-4 border-r border-white/10">
-          <span className="text-lg font-black tracking-tight text-primary">
-            AstralMagic
-          </span>
+          <GiGluttonousSmile className='w-12 h-12 fill-primary-foreground rounded-full p-1 '/>
         </div>
 
         {/* Active player indicator with backlight effect */}

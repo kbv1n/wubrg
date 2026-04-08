@@ -13,11 +13,11 @@
   --popover-foreground: #dddddd;
 
   /* Primary — $scarlet-rush */
-  --primary: #d13c3c;
+  --primary: #5e5e5e;
   --primary-foreground: #dddddd;
 
   /* Secondary — $dusk-blue */
-  --secondary: #3b5a95;
+  --secondary: #333333;
   --secondary-foreground: #dddddd;
 
   /* Muted — $charcoal */
@@ -34,17 +34,15 @@
 
   /* Borders — $silver / $charcoal */
   --border: #b3b3b3;
-  --input: #5e5e5e;
-  --ring: #d13c3c;
+  --input: #b3b3b3;
+  --ring: #333333;
 
-  --player-1: #f44a4a;
-  --player-2: #fb8f23;
-  --player-3: #fee440;
-  --player-4: #7aff60;
-  --player-5: #00f5d4;
-  --player-6: #00bbf9;
-  --player-7: #9b5de5;
-  --player-8: #f15bb5;
+  --player-1: #27498a;
+  --player-2: #be4b5f;
+  --player-3: #55965f;
+  --player-4: #d1a03c;
+  --player-5: #3c8796;
+  --player-6: #5a5096;
 
   --chart-1: #d13c3c;
   --chart-2: #3b5a95;

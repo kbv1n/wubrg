@@ -1,7 +1,7 @@
 "use client"
 
 import { io, Socket } from "socket.io-client"
-import type { GameState, PlayerState, CardState } from "./multiplayer-types"
+import type { MPGameState, PlayerState, CardState } from "./game-types"
 
 // ─── Server URL ───────────────────────────────────────────────────────────────
 
@@ -102,7 +102,7 @@ export function closeSocket(socket: Socket) {
  * Convert the plain JSON object sent by the server into the typed GameState
  * the React components expect (players as Map, cmdDamage as Map, etc.)
  */
-export function convertServerState(raw: Record<string, unknown>): GameState {
+export function convertServerState(raw: Record<string, unknown>): MPGameState {
   const rawPlayers = (raw.players ?? {}) as Record<string, Record<string, unknown>>
   const players = new Map<string, PlayerState>()
 
@@ -134,7 +134,7 @@ export function convertServerState(raw: Record<string, unknown>): GameState {
   }
 
   return {
-    phase:       (raw.phase as GameState["phase"]) ?? "lobby",
+    phase:       (raw.phase as MPGameState["phase"]) ?? "lobby",
     roomId:      String(raw.roomId      ?? ""),
     hostId:      String(raw.hostId      ?? ""),
     maxPlayers:  Number(raw.maxPlayers  ?? 4),
@@ -191,4 +191,9 @@ export const GameActions = {
   changePoison:   (delta: number)  => emit("change_poison",   { delta }),
   passTurn:       ()               => emit("pass_turn"),
   untapAll:       ()               => emit("untap_all"),
+
+  // ── Solo / Testing ─────────────────────────────────────────────────────────
+  // Fills empty player slots with bots then starts the game immediately.
+  // Only the host can call this; the server ignores it from non-hosts.
+  fillBotsAndStart: () => emit("fill_bots_and_start"),
 }

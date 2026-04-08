@@ -1,7 +1,7 @@
 "use client"
 
 import { Client, Room } from "colyseus.js"
-import type { GameState, PlayerState, CardState, ClientMessage } from "./multiplayer-types"
+import type { GameState, PlayerState, CardState, ClientMessage } from "./game-types"
 
 // Server URL configuration
 const getServerUrl = () => {
@@ -103,35 +103,62 @@ export const GameActions = {
   untapAll: () => sendMessage("untap_all"),
 }
 
-// Helper to convert Colyseus MapSchema to regular Map/Object
+function convertPlayer(player: any): PlayerState {
+  return {
+    odId: player.odId,
+    name: player.name,
+    pid: player.pid,
+    life: player.life,
+    poison: player.poison,
+    colorIndex: player.colorIndex,
+    playmatUrl: player.playmatUrl,
+    ready: player.ready,
+    connected: player.connected,
+    deckText: player.deckText,
+    battlefield: arraySchemaToArray(player.battlefield),
+    hand: arraySchemaToArray(player.hand),
+    library: arraySchemaToArray(player.library),
+    graveyard: arraySchemaToArray(player.graveyard),
+    exile: arraySchemaToArray(player.exile),
+    commandZone: arraySchemaToArray(player.commandZone),
+    cmdDamage: mapSchemaToMap(player.cmdDamage),
+  }
+}
+
+// Helper to convert Colyseus MapSchema to regular Map
 export function schemaToPlayers(playersSchema: any): Map<string, PlayerState> {
   const players = new Map<string, PlayerState>()
-  
   if (!playersSchema) return players
-  
-  // Colyseus MapSchema iteration
-  playersSchema.forEach((player: any, odId: string) => {
-    players.set(odId, {
-      odId: player.odId,
-      name: player.name,
-      pid: player.pid,
-      life: player.life,
-      poison: player.poison,
-      colorIndex: player.colorIndex,
-      playmatUrl: player.playmatUrl,
-      ready: player.ready,
-      connected: player.connected,
-      deckText: player.deckText,
-      battlefield: arraySchemaToArray(player.battlefield),
-      hand: arraySchemaToArray(player.hand),
-      library: arraySchemaToArray(player.library),
-      graveyard: arraySchemaToArray(player.graveyard),
-      exile: arraySchemaToArray(player.exile),
-      commandZone: arraySchemaToArray(player.commandZone),
-      cmdDamage: mapSchemaToMap(player.cmdDamage),
+
+  console.log("[schemaToPlayers] type:", typeof playersSchema, "keys:", Object.keys(playersSchema).slice(0, 10), "hasForeach:", typeof playersSchema.forEach)
+
+  // Try MapSchema.forEach (value, key) — standard in @colyseus/schema v2
+  if (typeof playersSchema.forEach === 'function') {
+    playersSchema.forEach((player: any, odId: string) => {
+      console.log("[schemaToPlayers] forEach entry — key:", odId, "value type:", typeof player)
+      if (player && typeof player === 'object') {
+        players.set(odId, convertPlayer(player))
+      }
     })
-  })
-  
+  }
+
+  // If forEach iterated nothing, fall back to Object.entries (plain-object decoded state)
+  if (players.size === 0) {
+    console.log("[schemaToPlayers] forEach found nothing, trying Object.entries")
+    Object.entries(playersSchema).forEach(([odId, player]) => {
+      if (
+        typeof odId === 'string' &&
+        player && typeof player === 'object' &&
+        !odId.startsWith('$') && !odId.startsWith('_') &&
+        odId !== 'onAdd' && odId !== 'onRemove' && odId !== 'onChange'
+      ) {
+        console.log("[schemaToPlayers] entries fallback — key:", odId)
+        players.set(odId, convertPlayer(player as any))
+      }
+    })
+  }
+
+  console.log("[schemaToPlayers] result size:", players.size)
   return players
 }
 
@@ -162,6 +189,15 @@ function mapSchemaToMap(mapSchema: any): Map<string, { dealt: number }> {
   return result
 }
 
+// Safely convert an ArraySchema (or any iterable/array-like) to a plain array
+function toArray<T>(schema: any): T[] {
+  if (!schema) return []
+  // ArraySchema has a toArray() method in some versions
+  if (typeof schema.toArray === 'function') return schema.toArray()
+  // Fall back to Array.from which handles both iterables and array-likes
+  try { return Array.from(schema) } catch { return [] }
+}
+
 // Convert full game state from schema
 export function schemaToGameState(state: any): GameState {
   return {
@@ -172,8 +208,8 @@ export function schemaToGameState(state: any): GameState {
     turn: state.turn,
     round: state.round,
     players: schemaToPlayers(state.players),
-    takenColors: state.takenColors ? [...state.takenColors] : [],
-    log: state.log ? [...state.log] : [],
-    playerOrder: state.playerOrder ? [...state.playerOrder] : [],
+    takenColors: toArray<number>(state.takenColors),
+    log: toArray<string>(state.log),
+    playerOrder: toArray<string>(state.playerOrder),
   }
 }

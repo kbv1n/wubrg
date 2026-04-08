@@ -11,11 +11,11 @@ import {
   setActiveSocket,
   convertServerState,
 } from "@/lib/socket-client"
-import type { GameState } from "@/lib/multiplayer-types"
+import type { MPGameState } from "@/lib/game-types"
 
 interface MultiplayerWrapperProps {
   children: (props: {
-    gameState: GameState
+    gameState: MPGameState
     localPlayerId: string
     isMultiplayer: true
   }) => React.ReactNode
@@ -30,7 +30,7 @@ type Phase = "connecting" | "lobby" | "playing" | "error"
 
 export function MultiplayerWrapper({ children, onBack, initialAction }: MultiplayerWrapperProps) {
   const [phase, setPhase]               = useState<Phase>("connecting")
-  const [gameState, setGameState]       = useState<GameState | null>(null)
+  const [gameState, setGameState]       = useState<MPGameState | null>(null)
   const [localPlayerId, setLocalPlayerId] = useState("")
   const [error, setError]               = useState("")
 

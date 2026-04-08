@@ -1,4 +1,4 @@
-// MTG Commander Game Types
+// MTG Commander Game Types — single source of truth for both local and networked play
 
 export interface CardData {
   name: string
@@ -107,4 +107,69 @@ export const MANA_COLORS: Record<string, string> = {
   G: '#186a45',
   C: '#8b94a0',
   X: '#9b59b6'
+}
+
+// ─── Networked / Multiplayer Types ───────────────────────────────────────────
+// These mirror the server's plain-JSON state and are used throughout the
+// multiplayer components. The server sends CardState (minimal) and clients
+// look up full CardData via lookupCard(cardId).
+
+export type GamePhase = 'lobby' | 'commander-select' | 'playing' | 'ended'
+
+/** Minimal card representation sent over the network. */
+export interface CardState {
+  iid: string
+  cardId: string  // card name — looked up against Scryfall cache on the client
+  x: number       // 0–100 percentage of battlefield width
+  y: number       // 0–100 percentage of battlefield height
+  tapped: boolean
+  faceDown: boolean
+  counters: number
+  zone: string
+}
+
+export interface CommanderDamage {
+  dealt: number
+}
+
+/** A player's full state as stored on the server and broadcast to clients. */
+export interface PlayerState {
+  odId: string        // socket session ID
+  name: string
+  pid: number         // join-order index
+  life: number
+  poison: number
+  colorIndex: number  // -1 = none selected
+  playmatUrl: string
+  ready: boolean
+  connected: boolean
+  deckText: string
+  battlefield: CardState[]
+  hand: CardState[]
+  library: CardState[]
+  graveyard: CardState[]
+  exile: CardState[]
+  commandZone: CardState[]
+  cmdDamage: Map<string, CommanderDamage>
+}
+
+/** Full multiplayer room state broadcast from the server. */
+export interface MPGameState {
+  phase: GamePhase
+  roomId: string
+  hostId: string
+  maxPlayers: number
+  turn: number
+  round: number
+  players: Map<string, PlayerState>
+  takenColors: number[]
+  log: string[]
+  playerOrder: string[]
+}
+
+export interface RoomInfo {
+  roomId: string
+  clients: number
+  maxClients: number
+  metadata?: Record<string, unknown>
 }

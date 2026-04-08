@@ -30,6 +30,35 @@ function uid(): string {
   return Math.random().toString(36).substring(2, 15)
 }
 
+// Bot deck using well-known Commander staples (all in the client's DEMO_DATA cache)
+const BOT_DEMO_DECK = `
+1 Atraxa, Praetors' Voice *CMDR*
+4 Sol Ring
+4 Command Tower
+4 Arcane Signet
+4 Mind Stone
+4 Thought Vessel
+4 Swiftfoot Boots
+4 Lightning Greaves
+4 Reliquary Tower
+4 Llanowar Elves
+4 Eternal Witness
+4 Solemn Simulacrum
+4 Burnished Hart
+4 Mulldrifter
+4 Thran Dynamo
+4 Cultivate
+4 Farseek
+4 Rampant Growth
+4 Path to Exile
+4 Swords to Plowshares
+4 Counterspell
+4 Negate
+4 Swan Song
+4 Cyclonic Rift
+4 Wrath of God
+`.trim()
+
 export class GameRoom {
   readonly roomId: string
   private io: SocketIOServer
@@ -193,6 +222,13 @@ export class GameRoom {
         player.ready = false
         break
 
+      case "fill_bots_and_start":
+        if (socketId !== this.state.hostId) return
+        if (this.state.phase !== "lobby") return
+        this.fillWithBots()
+        this.startGame()
+        return
+
       case "start_game":
         if (socketId !== this.state.hostId) return
         if (!this.canStartGame()) return
@@ -312,6 +348,54 @@ export class GameRoom {
   private canStartGame(): boolean {
     const players = Object.values(this.state.players)
     return players.length >= 2 && players.every(p => p.ready)
+  }
+
+  // Fill remaining player slots with bots using a simple demo deck
+  private fillWithBots() {
+    const botDeck = BOT_DEMO_DECK
+    const takenColors = [...this.state.takenColors]
+
+    while (Object.keys(this.state.players).length < this.state.maxPlayers) {
+      const botId = `bot_${uid()}`
+      const playerCount = Object.keys(this.state.players).length
+      // Pick first available color
+      let colorIndex = -1
+      for (let i = 0; i < 8; i++) {
+        if (!takenColors.includes(i)) { colorIndex = i; takenColors.push(i); break }
+      }
+
+      const bot: PlayerState = {
+        odId: botId,
+        name: `Bot ${playerCount + 1}`,
+        pid: playerCount,
+        life: 40,
+        poison: 0,
+        colorIndex,
+        playmatUrl: "",
+        ready: true,
+        connected: true,
+        deckText: botDeck,
+        battlefield: [],
+        hand: [],
+        library: [],
+        graveyard: [],
+        exile: [],
+        commandZone: [],
+        cmdDamage: {},
+      }
+
+      this.parseDeck(bot, botDeck)
+      this.state.players[botId] = bot
+      this.state.playerOrder.push(botId)
+      if (colorIndex >= 0) this.state.takenColors.push(colorIndex)
+      this.addLog(`${bot.name} (bot) joined`)
+    }
+
+    // Ensure host is also ready
+    const host = this.state.players[this.state.hostId]
+    if (host && !host.ready && host.library.length > 0 && host.colorIndex >= 0) {
+      host.ready = true
+    }
   }
 
   private startGame() {

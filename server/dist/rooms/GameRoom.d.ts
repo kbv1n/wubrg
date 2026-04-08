@@ -1,6 +1,5 @@
 import { Room, Client } from "colyseus";
-import { ArraySchema, MapSchema } from "@colyseus/schema";
-import { GameState, PlayerState, CardState, CommanderDamage, ClientMessage } from "../schema/GameState";
+import { GameState, PlayerState, ClientMessage } from "../schema/GameState";
 export declare class GameRoom extends Room<GameState> {
     maxClients: number;
     onCreate(options: {
@@ -11,12 +10,6 @@ export declare class GameRoom extends Room<GameState> {
     }): void;
     onLeave(client: Client, consented: boolean): void;
     handleMessage(client: Client, message: ClientMessage): void;
-    syncState(): void;
-    serializePlainState(): any;
-    serializeCards(cards: ArraySchema<CardState>): any[];
-    serializeCmdDamage(cmdDamage: MapSchema<CommanderDamage>): Record<string, {
-        dealt: number;
-    }>;
     parseDeck(player: PlayerState, deckText: string): void;
     canStartGame(): boolean;
     startGame(): void;
