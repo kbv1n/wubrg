@@ -122,7 +122,7 @@ export function CommanderSelectScreen({
                               "w-16 h-[88px] rounded overflow-hidden ring-2 transition-all"
                             )}
                             style={{
-                              ringColor: isSelected ? pal.accent : pal.border,
+                              outline: `2px solid ${isSelected ? pal.accent : pal.border}`,
                               boxShadow: isSelected ? `0 0 12px ${pal.glow}` : 'none'
                             }}
                           >

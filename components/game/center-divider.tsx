@@ -104,7 +104,8 @@ export function CenterDivider({
                 )}
                 style={{
                   background: isActive ? `${p.pal.accent}15` : 'transparent',
-                  ringColor: isActive ? p.pal.accent : 'transparent',
+                  outline: isActive ? `2px solid ${p.pal.accent}` : 'none',
+                  outlineOffset: '2px',
                 }}
                 title={`${p.name} - Click for Commander Damage`}
               >

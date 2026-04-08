@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter, JetBrains_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
+import { ToastProvider } from '@/components/game/toast-system'
 import './globals.css'
 
 const inter = Inter({ 
@@ -49,8 +50,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased overflow-hidden`}>
-        {children}
+      {/* overflow is NOT on the body — game board sets overflow:hidden on itself.
+          Lobby and other scrollable pages need a free body to scroll. */}
+      <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased`}>
+        <ToastProvider>
+          {children}
+        </ToastProvider>
         <Analytics />
       </body>
     </html>

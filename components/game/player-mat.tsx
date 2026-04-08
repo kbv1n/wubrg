@@ -61,7 +61,7 @@ export function PlayerMat({
   const [isPanning, setIsPanning] = useState(false)
   const panStart = useRef<{ mx: number; my: number; px: number; py: number } | null>(null)
   const [spaceDown, setSpaceDown] = useState(false)
-  const [handVisible, setHandVisible] = useState(false)
+  const [handVisible, setHandVisible] = useState(true) // hand open by default
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -132,8 +132,8 @@ export function PlayerMat({
         isMain ? 'min-h-[200px]' : 'min-h-[120px]'
       )}
       style={{
-        // Use player's flat background color for battlefield
-        background: pal.bg,
+        // Area outside the playmat uses the global background color
+        background: 'var(--background)',
       }}
     >
       {/* Active player subtle border highlight */}
@@ -277,7 +277,13 @@ export function PlayerMat({
 
       {/* Battlefield */}
       <div
-        ref={outerScrollRef as React.RefObject<HTMLDivElement>}
+        ref={(el) => {
+          // Expose the viewport div via both outerScrollRef and matRef.
+          // matRef gives the multiplayer board the screen-space origin of this
+          // player's playmat area; outerScrollRef is used internally for scroll.
+          if (outerScrollRef) (outerScrollRef as React.MutableRefObject<HTMLDivElement | null>).current = el
+          matRef(el)
+        }}
         className={cn(
           'flex-1 overflow-hidden z-1 relative',
           isPanning ? 'cursor-grabbing' : spaceDown ? 'cursor-grab' : 'cursor-default'
@@ -289,16 +295,22 @@ export function PlayerMat({
         onMouseLeave={handleMouseUp}
       >
         <div
-          ref={matRef}
           data-bfpid={player.pid}
           className={cn(
-            'absolute top-0 left-0 w-full h-full transition-colors',
-            isHandDragOver && 'ring-2 ring-primary/30 bg-primary/5',
+            'absolute top-0 left-0 transition-colors',
+            isHandDragOver && 'ring-2 ring-primary/30',
             player.playmat && 'playmat-texture'
           )}
           style={{
+            // Fixed canvas size — the playmat does NOT resize with the browser window.
+            // Pan/zoom let players navigate within this fixed space.
+            width: 1600,
+            height: 900,
             transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
             transformOrigin: '0 0',
+            background: player.playmat
+              ? undefined
+              : pal.bg,
             ...(player.playmat ? {
               backgroundImage: `url(${player.playmat})`,
               backgroundSize: player.playmatFit === 'contain' ? 'contain' : 'cover',
@@ -357,8 +369,8 @@ export function PlayerMat({
             <div
               key={c.iid}
               className="w-10 h-14 rounded-lg overflow-hidden cursor-pointer ring-1 transition-all hover:scale-110"
-              style={{ 
-                ringColor: `${pal.accent}60`,
+              style={{
+                outline: `1px solid ${pal.accent}60`,
                 boxShadow: `0 4px 20px ${pal.glow}`
               }}
               onContextMenu={(e) => onCardRC(e, c.iid, 'command')}
@@ -443,9 +455,9 @@ export function PlayerMat({
                         "ring-2 transition-all duration-200"
                       )}
                       style={{
-                        ringColor: isHovered ? pal.accent : 'rgba(255,255,255,0.15)',
-                        boxShadow: isHovered 
-                          ? `0 0 40px ${pal.glow}, 0 20px 50px rgba(0,0,0,0.7)` 
+                        outline: `2px solid ${isHovered ? pal.accent : 'rgba(255,255,255,0.15)'}`,
+                        boxShadow: isHovered
+                          ? `0 0 40px ${pal.glow}, 0 20px 50px rgba(0,0,0,0.7)`
                           : '0 8px 24px rgba(0,0,0,0.5)'
                       }}
                       onMouseDown={(e) => onHandCardMD(e, c.iid)}

@@ -50,19 +50,14 @@ export function CardImage({
   )
 }
 
-// Card back component
+// Card back component — uses the real Magic card back texture
 export function CardBack({ className }: { className?: string }) {
   return (
-    <div 
-      className={cn(
-        'w-full h-full rounded bg-[#2d3047]',
-        'border-2 border-[#4a5070] flex items-center justify-center',
-        className
-      )}
-    >
-      <div className="w-8 h-8 rounded-full bg-indigo-800/50 flex items-center justify-center">
-        <span className="text-indigo-400/50 text-lg">M</span>
-      </div>
-    </div>
+    <img
+      src="/textures/Magic_card_back.webp"
+      alt="Card back"
+      draggable={false}
+      className={cn('w-full h-full object-cover rounded', className)}
+    />
   )
 }

@@ -24,10 +24,10 @@ export function ContextMenu({ x, y, card, zone, pal, onAction }: ContextMenuProp
   const isHand = zone === 'hand'
   const isCmd = zone === 'command'
 
-  const items: (MenuItem | null)[] = [
-    isBF ? { 
-      label: card?.tapped ? 'Untap' : 'Tap', 
-      action: 'tap', 
+  const items: MenuItem[] = ([
+    isBF ? {
+      label: card?.tapped ? 'Untap' : 'Tap',
+      action: 'tap',
       color: '#f59e0b',
       icon: card?.tapped ? '↩' : '↪'
     } : null,
@@ -40,7 +40,7 @@ export function ContextMenu({ x, y, card, zone, pal, onAction }: ContextMenuProp
     (isBF || isHand) ? { label: 'Toggle Face Down', action: 'fd', icon: '👁' } : null,
     isBF ? { label: 'Counters', action: 'ctr', color: '#a78bfa', icon: '🔢' } : null,
     isBF ? { label: 'Duplicate', action: 'dup', icon: '📋' } : null,
-  ].filter(Boolean) as MenuItem[]
+  ] as (MenuItem | null)[]).filter((i): i is MenuItem => i !== null)
 
   // Position menu to stay on screen - constrained to viewable area
   const menuWidth = 208

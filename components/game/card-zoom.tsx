@@ -14,7 +14,7 @@ export function CardZoom({ card }: CardZoomProps) {
   if (!card || card.faceDown) return null
 
   const showBack = card.showBack && card.imgBack
-  const img = showBack ? card.imgBack : card.img
+  const img: string | null = showBack ? (card.imgBack ?? null) : card.img
   const name = showBack ? (card.backName || card.name) : card.name
   const type = showBack ? (card.backType || card.typeLine) : card.typeLine
   const pw = showBack ? card.backPower : card.power
