@@ -291,7 +291,7 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
     <div className="h-screen w-screen flex flex-col bg-background overflow-hidden relative select-none">
       {/* Player mats */}
       <div className="flex-1 flex flex-col gap-1 p-1 overflow-hidden min-h-0">
-        {layout.top.length > 0 && (
+        {layout.top.length > 0 ? (
           <div className="flex gap-1" style={{ flex: 1, minHeight: 0 }}>
             {layout.top.map((player) => {
               const props = makePlayerMatProps(player, player.pid)
@@ -299,7 +299,7 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
               return <PlayerMat key={player.pid} {...props} />
             })}
           </div>
-        )}
+        ) : null}
         {layout.bottom.map((player) => (
           <div key={player.pid} className="flex flex-1 min-h-0">
             <PlayerMat {...makePlayerMatProps(player, player.pid)} />
@@ -332,7 +332,7 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
       />
 
       {/* Context Menu */}
-      {contextMenu && (
+      {contextMenu ? (
         <ContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
@@ -348,10 +348,10 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
           pal={PALETTES[localPid % PALETTES.length]}
           onAction={handleContextAction}
         />
-      )}
+      ) : null}
 
       {/* Zone Viewer */}
-      {zoneViewer && players[zoneViewer.pid] && (
+      {zoneViewer && players[zoneViewer.pid] ? (
         <ZoneViewer
           player={players[zoneViewer.pid]}
           zone={zoneViewer.zone}
@@ -363,7 +363,7 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
           onHover={setHoverCard}
           onHL={() => setHoverCard(null)}
         />
-      )}
+      ) : null}
 
       {/* Action log */}
       <ActionLogPopdown
@@ -373,7 +373,7 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
       />
 
       {/* Dice modal */}
-      {diceOpen && (
+      {diceOpen ? (
         <DiceModal
           mode="dice"
           onRoll={(sides) => {
@@ -389,15 +389,15 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
           onLog={() => {}}
           onClose={() => setDiceOpen(false)}
         />
-      )}
+      ) : null}
 
       {/* Card hover preview — full CardZoom with image */}
-      {hoverCard && !dragIid && (
+      {hoverCard && !dragIid ? (
         <CardZoom card={hoverCard} />
-      )}
+      ) : null}
 
       {/* Drag ghost — semi-transparent card following the cursor */}
-      {dragIid && dragCard && (
+      {dragIid && dragCard ? (
         <div
           className="fixed pointer-events-none z-[9999]"
           style={{
@@ -425,7 +425,7 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
             )}
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   )
 }

@@ -88,35 +88,35 @@ export function PlayerSlot({
           )}
           
           {/* Host badge */}
-          {isHost && (
+          {isHost ? (
             <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#fb8f23]/20 text-[#fb8f23] text-xs font-medium">
               <Crown className="w-3 h-3" />
               Host
             </span>
-          )}
-          
+          ) : null}
+
           {/* You indicator */}
-          {isLocal && (
+          {isLocal ? (
             <span className="px-2 py-0.5 rounded-full bg-primary/20 text-primary text-xs font-medium">
               You
             </span>
-          )}
+          ) : null}
         </div>
 
         {/* Ready indicator */}
         <div className={cn(
           "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-medium",
-          player.ready 
-            ? "bg-primary/20 text-primary" 
+          player.ready
+            ? "bg-primary/20 text-primary"
             : "bg-muted text-muted-foreground"
         )}>
-          {player.ready && <Check className="w-4 h-4" />}
+          {player.ready ? <Check className="w-4 h-4" /> : null}
           {player.ready ? "Ready" : "Not Ready"}
         </div>
       </div>
 
       {/* Color Selection (only for local player) */}
-      {isLocal && onColorChange && (
+      {isLocal && onColorChange ? (
         <div className="mb-3">
           <p className="text-xs text-muted-foreground mb-2">Select Color</p>
           <div className="flex gap-1.5 flex-wrap">
@@ -132,7 +132,7 @@ export function PlayerSlot({
                     player.colorIndex === idx && "ring-2 ring-white ring-offset-2 ring-offset-card",
                     isTaken && "opacity-30 cursor-not-allowed"
                   )}
-                  style={{ 
+                  style={{
                     backgroundColor: p.accent,
                     borderColor: player.colorIndex === idx ? "white" : "transparent"
                   }}
@@ -142,7 +142,7 @@ export function PlayerSlot({
             })}
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Deck Status */}
       <div className="flex items-center gap-2 text-sm">
@@ -159,12 +159,12 @@ export function PlayerSlot({
       </div>
 
       {/* Playmat Status */}
-      {player.playmatUrl && (
+      {player.playmatUrl ? (
         <div className="flex items-center gap-2 text-sm mt-1">
           <div className="w-2 h-2 rounded-full bg-accent" />
           <span className="text-muted-foreground">Custom playmat set</span>
         </div>
-      )}
+      ) : null}
     </div>
   )
 }

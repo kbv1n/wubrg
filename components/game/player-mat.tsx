@@ -137,18 +137,18 @@ export function PlayerMat({
       }}
     >
       {/* Active player subtle border highlight */}
-      {isActive && (
-        <div 
+      {isActive ? (
+        <div
           className="absolute inset-0 pointer-events-none z-0 border-2 rounded"
           style={{
             borderColor: `${pal.accent}40`
           }}
         />
-      )}
+      ) : null}
 
       {/* Compact Liquid Glass Header - Top Left (hidden for main player, shown in action bar) */}
-      {!isMain && (
-        <div 
+      {!isMain ? (
+        <div
           className={cn(
             "absolute top-3 left-3 z-10",
             "liquid-glass rounded-2xl",
@@ -174,7 +174,7 @@ export function PlayerMat({
 
           {/* Life total - only adjustable for local player */}
           <div className="flex items-center gap-0.5 ml-2">
-            {isLocal && (
+            {isLocal ? (
               <Button
                 onClick={() => onLife(-1)}
                 variant="ghost"
@@ -183,8 +183,8 @@ export function PlayerMat({
               >
                 <Minus className="w-3 h-3" />
               </Button>
-            )}
-            <span 
+            ) : null}
+            <span
               className={cn(
                 'text-lg font-black tabular-nums min-w-[2rem] text-center',
                 life <= 10 && 'text-red-400',
@@ -194,7 +194,7 @@ export function PlayerMat({
             >
               {life}
             </span>
-            {isLocal && (
+            {isLocal ? (
               <Button
                 onClick={() => onLife(1)}
                 variant="ghost"
@@ -203,16 +203,16 @@ export function PlayerMat({
               >
                 <Plus className="w-3 h-3" />
               </Button>
-            )}
+            ) : null}
           </div>
 
-          {poison > 0 && (
+          {poison > 0 ? (
             <span className="text-xs font-bold text-violet-400 flex items-center gap-0.5 ml-1">
               <Skull className="w-3 h-3" />{poison}
             </span>
-          )}
+          ) : null}
         </div>
-      )}
+      ) : null}
 
       {/* Zone buttons - Top Right (shown for all players) */}
       <div 
@@ -332,7 +332,7 @@ export function PlayerMat({
           ))}
           
           {/* Empty battlefield hint */}
-          {battlefield.length === 0 && (
+          {battlefield.length === 0 ? (
             <div className="absolute inset-0 flex items-center justify-center flex-col gap-1 pointer-events-none">
               <span className={cn(
                 "text-xs transition-colors",
@@ -341,28 +341,28 @@ export function PlayerMat({
                 {isHandDragOver ? 'Drop to play' : ''}
               </span>
             </div>
-          )}
+          ) : null}
 
           {/* Drop overlay */}
-          {isHandDragOver && battlefield.length > 0 && (
-            <div 
+          {isHandDragOver && battlefield.length > 0 ? (
+            <div
               className="absolute inset-0 border border-dashed rounded-lg pointer-events-none flex items-end justify-center pb-3"
               style={{ borderColor: `${pal.accent}40`, background: `${pal.glow}10` }}
             >
-              <span 
+              <span
                 className="text-xs font-medium px-3 py-1 rounded-full liquid-glass-subtle"
                 style={{ color: pal.accent }}
               >
                 Release to play
               </span>
             </div>
-          )}
+          ) : null}
         </div>
       </div>
 
       {/* Command zone - Floating pill */}
-      {command.length > 0 && (
-        <div 
+      {command.length > 0 ? (
+        <div
           className="absolute right-3 bottom-20 z-10 flex gap-1.5"
         >
           {command.map((c) => (
@@ -381,10 +381,10 @@ export function PlayerMat({
             </div>
           ))}
         </div>
-      )}
+      ) : null}
 
       {/* Hand toggle button - Always visible when hand has cards */}
-      {isMain && hand.length > 0 && (
+      {isMain && hand.length > 0 ? (
         <button
           onClick={() => setHandVisible(!handVisible)}
           className={cn(
@@ -394,7 +394,7 @@ export function PlayerMat({
             "transition-all duration-200 hover:scale-105",
             handVisible && "opacity-70"
           )}
-          style={{ 
+          style={{
             borderColor: `${pal.accent}40`,
             boxShadow: handVisible ? 'none' : `0 0 20px ${pal.glow}40`
           }}
@@ -403,19 +403,19 @@ export function PlayerMat({
           <span className="text-sm font-bold" style={{ color: pal.accent }}>
             {hand.length}
           </span>
-          <Eye 
+          <Eye
             className={cn(
               "w-4 h-4 transition-transform",
               handVisible && "rotate-180"
-            )} 
-            style={{ color: pal.accent }} 
+            )}
+            style={{ color: pal.accent }}
           />
         </button>
-      )}
+      ) : null}
 
       {/* Dock-style Hand - 3x larger, toggleable */}
-      {isMain && hand.length > 0 && handVisible && (
-        <div 
+      {isMain && hand.length > 0 && handVisible ? (
+        <div
           className={cn(
             "absolute bottom-0 left-0 right-0 z-20",
             "flex justify-center items-end",
@@ -471,18 +471,18 @@ export function PlayerMat({
             )}
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Non-main player hand indicator */}
-      {!isMain && hand.length > 0 && (
-        <div 
+      {!isMain && hand.length > 0 ? (
+        <div
           className="absolute bottom-3 left-3 z-10 liquid-glass-subtle rounded-full px-2.5 py-1 text-xs font-medium flex items-center gap-1.5"
           style={{ color: pal.accent }}
         >
           <Hand className="w-3.5 h-3.5" />
           {hand.length}
         </div>
-      )}
+      ) : null}
     </div>
   )
 }

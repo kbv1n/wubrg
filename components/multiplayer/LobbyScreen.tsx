@@ -206,7 +206,7 @@ export function LobbyScreen({ gameState, localPlayerId, roomId, onLeave }: Lobby
                 {showDeckInput ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               </button>
 
-              {showDeckInput && (
+              {showDeckInput ? (
                 <>
                   {/* Moxfield Link */}
                   <a
@@ -238,16 +238,16 @@ export function LobbyScreen({ gameState, localPlayerId, roomId, onLeave }: Lobby
                     load
                   </Button>
 
-                  {localPlayer && (localPlayer.library?.length || 0) > 0 && (
+                  {localPlayer && (localPlayer.library?.length || 0) > 0 ? (
                     <p className="text-sm text-primary mt-2 text-center">
                       Deck loaded: {localPlayer.library?.length || 0} cards
-                      {(localPlayer.commandZone?.length || 0) > 0 && (
+                      {(localPlayer.commandZone?.length || 0) > 0 ? (
                         <> + {localPlayer.commandZone?.length} commander(s)</>
-                      )}
+                      ) : null}
                     </p>
-                  )}
+                  ) : null}
                 </>
-              )}
+              ) : null}
             </div>
 
             {/* Playmat Section */}
@@ -264,7 +264,7 @@ export function LobbyScreen({ gameState, localPlayerId, roomId, onLeave }: Lobby
               </button>
 
               {/* Current selection preview */}
-              {playmatUrl && (
+              {playmatUrl ? (
                 <div className="mb-3 flex items-center gap-3 p-2 rounded-lg bg-background/40 border border-border/30">
                   <div className="w-16 h-10 rounded overflow-hidden flex-shrink-0 border border-white/10">
                     <img
@@ -287,9 +287,9 @@ export function LobbyScreen({ gameState, localPlayerId, roomId, onLeave }: Lobby
                     <X className="w-3 h-3" />
                   </Button>
                 </div>
-              )}
+              ) : null}
 
-              {showPlaymatPicker && (
+              {showPlaymatPicker ? (
                 <>
                   {/* Packaged playmat grid */}
                   <div className="grid grid-cols-4 gap-2 mb-3 max-h-64 overflow-y-auto pr-1 custom-scrollbar">
@@ -321,16 +321,16 @@ export function LobbyScreen({ gameState, localPlayerId, roomId, onLeave }: Lobby
                           <span className="text-[9px] text-center text-muted-foreground leading-tight line-clamp-1 w-full">
                             {mat.name}
                           </span>
-                          {isTaken && (
+                          {isTaken ? (
                             <div className="absolute inset-0 rounded-lg flex items-center justify-center bg-background/40">
                               <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-wide">Taken</span>
                             </div>
-                          )}
-                          {isSelected && (
+                          ) : null}
+                          {isSelected ? (
                             <div className="absolute top-1 right-1 w-3 h-3 rounded-full bg-primary flex items-center justify-center">
                               <Check className="w-2 h-2 text-primary-foreground" />
                             </div>
-                          )}
+                          ) : null}
                         </button>
                       )
                     })}
@@ -367,7 +367,7 @@ export function LobbyScreen({ gameState, localPlayerId, roomId, onLeave }: Lobby
                     </div>
                   )}
                 </>
-              )}
+              ) : null}
             </div>
 
             {/* Ready / Start Section */}
@@ -400,7 +400,7 @@ export function LobbyScreen({ gameState, localPlayerId, roomId, onLeave }: Lobby
                 </Button>
               )}
 
-              {isHost && (
+              {isHost ? (
                 <>
                   <Button
                     onClick={handleStartGame}
@@ -416,15 +416,15 @@ export function LobbyScreen({ gameState, localPlayerId, roomId, onLeave }: Lobby
                     {allReady ? "Start Game" : `Waiting for ${players.filter(p => !p.ready).length} player(s)...`}
                   </Button>
                 </>
-              )}
-              {!isHost && allReady && (
+              ) : null}
+              {!isHost && allReady ? (
                 <p className="text-center text-sm text-muted-foreground">
                   Waiting for host to start the game...
                 </p>
-              )}
+              ) : null}
             </div>
             {/* Game Log */}
-            {gameState.log.length > 0 && (
+            {gameState.log.length > 0 ? (
                 <div className="max-w-4xl mx-auto">
                   <p className="text-xs text-muted-background mb-2">join-log</p>
                   <div className="flex gap-2 overflow-x-auto pb-2">
@@ -435,22 +435,22 @@ export function LobbyScreen({ gameState, localPlayerId, roomId, onLeave }: Lobby
                     ))}
                   </div>
                 </div>
-            )}
+            ) : null}
           </div>
         </div>
-        {isHost && (
+        {isHost ? (
           <footer className="max-w-4xl mx-auto mt-6 flex items-center justify-end gap-4">
-            {players.length < gameState.maxPlayers && (
+            {players.length < gameState.maxPlayers ? (
               <Button
                   onClick={() => GameActions.fillBotsAndStart()}
                   className="w-20 h-6 text-sm gap-2 bg-background text-muted-background hover:bg-foreground/80 hover:text-background"
-                  > 
+                  >
                 <GiAlienBug className="w-4 h-4" />
                         debug
                 </Button>
-                    )}
+                    ) : null}
           </footer>
-        )}
+        ) : null}
       </main>
     </div>
   )
