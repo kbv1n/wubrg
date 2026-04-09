@@ -15,8 +15,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'gavinsmod',
-  description: 'Gavins Solution to Commander Online',
+  title: 'wubrg',
+  description: 'mtg without scripts',
   icons: {
     icon: [
       {
