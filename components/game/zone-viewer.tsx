@@ -18,6 +18,7 @@ interface ZoneViewerProps {
   onRC: (e: React.MouseEvent, card: CardInstance) => void
   onScry: (n: number) => void
   onMill: (n: number) => void
+  onReveal?: (card: CardInstance) => void
 }
 
 const ZONE_LABELS: Record<string, string> = {
@@ -37,7 +38,8 @@ export function ZoneViewer({
   onHL,
   onRC,
   onScry,
-  onMill
+  onMill,
+  onReveal
 }: ZoneViewerProps) {
   const [query, setQuery] = useState('')
   const [millN, setMillN] = useState('')
@@ -65,6 +67,10 @@ export function ZoneViewer({
 
   const revealCard = (iid: string) => {
     setRevealed(prev => new Set(prev).add(iid))
+    if (onReveal) {
+      const card = cards.find(c => c.iid === iid)
+      if (card) onReveal(card)
+    }
   }
 
   const doScry = () => {

@@ -7,13 +7,16 @@ import { ContextMenu } from '@/components/game/context-menu'
 import { ZoneViewer } from '@/components/game/zone-viewer'
 import { ActionLogPopdown } from '@/components/game/action-log-popdown'
 import { LoadingScreen } from '@/components/game/loading-screen'
-import { CardZoom } from '@/components/game/card-zoom'
 import { DiceModal } from '@/components/game/modals'
+import { CardImage } from '@/components/game/card-image'
+import { ManaSymbols } from '@/components/game/mana-symbols'
+import { getRarityColor } from '@/lib/game-data'
 import { PALETTES, type CardInstance, type Player, type ZoneType } from '@/lib/game-types'
 import { lookupCard, fetchScryfall } from '@/lib/game-data'
 import { GameActions } from '@/lib/socket-client'
 import type { MPGameState, CardState as MPCardState, PlayerState as MPPlayerState } from '@/lib/game-types'
 import { useToast } from '@/components/game/toast-system'
+import { GiGluttonousSmile } from "react-icons/gi";
 
 interface MultiplayerGameBoardProps {
   gameState: MPGameState
@@ -100,14 +103,35 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
 
   const { toast } = useToast()
 
+  // ── Local action log — captures client-side actions that don't go through the server log
+  const [localLog, setLocalLog] = useState<string[]>([])
+  const addLocalLog = useCallback((msg: string) => {
+    setLocalLog(prev => [...prev, msg])
+  }, [])
+  // Unified notify: fires a toast AND records in local log
+  const notify = useCallback((msg: string, variant: 'default' | 'success' | 'error' | 'warning' | 'info' = 'default') => {
+    toast(msg, variant)
+    addLocalLog(msg)
+  }, [toast, addLocalLog])
+
   // ── UI State ───────────────────────────────────────────────────────────────
   const [zoom, setZoom] = useState<Record<number, number>>({})
   const [pan, setPan] = useState<Record<number, { x: number; y: number }>>({})
   const [hoverCard, setHoverCard] = useState<CardInstance | null>(null)
+  const [hoverPos, setHoverPos] = useState({ x: 0, y: 0 })
+  const [previewScale, setPreviewScale] = useState(1)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; iid: string; zone: ZoneType } | null>(null)
   const [zoneViewer, setZoneViewer] = useState<{ pid: number; zone: ZoneType } | null>(null)
   const [logOpen, setLogOpen] = useState(false)
   const [diceOpen, setDiceOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [uiSettings, setUiSettings] = useState({
+    cardScale: 1,
+    defaultZoom: 1,
+    showZoomPanel: false,
+    uiScale: 1,
+    glassOpacity: 0.5,
+  })
 
   // ── Drag state ─────────────────────────────────────────────────────────────
   const [dragIid, setDragIid] = useState<string | null>(null)
@@ -125,9 +149,66 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
   const localPlayerIdx = playersArray.findIndex(p => p.odId === localPlayerId)
   const localPid = localPlayerIdx >= 0 ? localPlayerIdx : 0
 
+  const initializedViewports = useRef(false)
+  const prevLogLen = useRef(-1)
+  // Keep a stable ref to toast so the effect doesn't re-fire when the function identity changes
+  const toastRef = useRef(toast)
+  toastRef.current = toast
+
+  // ── Log → Toast sync: toast new log entries as they appear ─────────────
+  const logLen = gameState.log?.length ?? 0
+  useEffect(() => {
+    const log = gameState.log ?? []
+    // First run: snapshot current length, don't toast pre-existing entries
+    if (prevLogLen.current < 0) {
+      prevLogLen.current = log.length
+      return
+    }
+    if (log.length > prevLogLen.current) {
+      const newEntries = log.slice(prevLogLen.current)
+      for (const entry of newEntries) {
+        let variant: 'default' | 'success' | 'error' | 'warning' | 'info' = 'default'
+        if (entry.includes('damage') || entry.includes('lost') || entry.includes('destroyed')) variant = 'error'
+        else if (entry.includes('gained') || entry.includes('drew') || entry.includes('healed')) variant = 'success'
+        else if (entry.includes('played') || entry.includes('cast')) variant = 'warning'
+        else if (entry.includes('passed') || entry.includes('turn') || entry.includes('untapped')) variant = 'info'
+        toastRef.current(entry, variant)
+      }
+      prevLogLen.current = log.length
+    }
+  // Depend on log length (primitive) to avoid re-firing on every gameState reference change
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [logLen])
   const getZoom = (pid: number) => zoom[pid] ?? 1
   const setPlayerZoom = (pid: number, z: number) => setZoom(prev => ({ ...prev, [pid]: z }))
   const setPlayerPan = (pid: number, p: { x: number; y: number }) => setPan(prev => ({ ...prev, [pid]: p }))
+
+  // Auto-fit: calculate initial zoom so the 1600×900 canvas fills each viewport
+  useEffect(() => {
+    if (initializedViewports.current || !cardsLoaded) return
+    // Small delay to let viewports render and get their dimensions
+    const timer = setTimeout(() => {
+      const newZoom: Record<number, number> = {}
+      const newPan: Record<number, { x: number; y: number }> = {}
+      for (const [pidStr, vpEl] of Object.entries(viewportRefs.current)) {
+        if (!vpEl) continue
+        const pid = parseInt(pidStr)
+        const rect = vpEl.getBoundingClientRect()
+        const fitZoom = Math.max(rect.width / 1600, rect.height / 900)
+        newZoom[pid] = fitZoom
+        // Center the canvas in the viewport
+        const canvasW = 1600 * fitZoom
+        const canvasH = 900 * fitZoom
+        newPan[pid] = { x: (rect.width - canvasW) / 2, y: (rect.height - canvasH) / 2 }
+      }
+      if (Object.keys(newZoom).length > 0) {
+        setZoom(newZoom)
+        setPan(newPan)
+        initializedViewports.current = true
+      }
+    }, 50)
+    return () => clearTimeout(timer)
+  }, [cardsLoaded])
 
   // ── Coordinate calculation ─────────────────────────────────────────────────
   // Cards are stored as percentages of the FIXED 1600×900 canvas.
@@ -182,13 +263,30 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
     handleCardMD(e, iid, 'hand')
   }, [handleCardMD])
 
-  // Global mouse move — update ghost position
+  // Keep a ref to hoverCard for the wheel handler (avoids stale closure)
+  const hoverCardRef = useRef(hoverCard)
+  hoverCardRef.current = hoverCard
+
+  // Global mouse move — update ghost position + hover position
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
       if (dragIid) setDragPos({ x: e.clientX, y: e.clientY })
+      setHoverPos({ x: e.clientX, y: e.clientY })
+    }
+    // When hovering a card, capture wheel to scale preview instead of zooming the board
+    const onWheel = (e: WheelEvent) => {
+      if (hoverCardRef.current && !dragIid) {
+        e.preventDefault()
+        e.stopPropagation()
+        setPreviewScale(s => Math.max(0.5, Math.min(3, s + (e.deltaY > 0 ? -0.15 : 0.15))))
+      }
     }
     window.addEventListener('mousemove', onMove)
-    return () => window.removeEventListener('mousemove', onMove)
+    window.addEventListener('wheel', onWheel, { passive: false, capture: true })
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('wheel', onWheel, true)
+    }
   }, [dragIid])
 
   // Global mouse up — commit drop
@@ -204,7 +302,11 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
             e.clientY >= rect.top && e.clientY <= rect.bottom) {
           const pid = parseInt(pidStr)
           const { x, y } = screenToCanvasPct(e.clientX, e.clientY, pid)
-          GameActions.moveCard(dragIid, 'battlefield', x, y)
+          // Offset so the card center lands at the cursor, not the top-left corner
+          // Card is 126×176 on a 1600×900 canvas → ~3.9% and ~9.8%
+          const cx = Math.max(0, Math.min(95, x - (63 / 1600) * 100))
+          const cy = Math.max(0, Math.min(90, y - (88 / 900) * 100))
+          GameActions.moveCard(dragIid, 'battlefield', cx, cy)
           break
         }
       }
@@ -227,19 +329,41 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
   const handleContextAction = (action: string) => {
     if (!contextMenu) return
     const { iid } = contextMenu
+
+    // Find the card to check its state (e.g. tapped)
+    let card: CardInstance | null = null
+    for (const p of players) {
+      const all = [...p.battlefield, ...p.hand, ...p.graveyard, ...p.exile, ...p.command, ...p.library]
+      const c = all.find(c => c.iid === iid)
+      if (c) { card = c; break }
+    }
+
     switch (action) {
-      case 'tap':       GameActions.tapCard(iid); break
+      // 'tap' toggles: if tapped → untap, else → tap
+      case 'tap':
+        if (card?.tapped) GameActions.untapCard(iid)
+        else GameActions.tapCard(iid)
+        break
       case 'untap':     GameActions.untapCard(iid); break
       case 'flip':      GameActions.flipCard(iid); break
+      case 'fd':        GameActions.flipCard(iid); break
       case 'toHand':    GameActions.moveCard(iid, 'hand'); break
+      case 'toBF':
       case 'toBattlefield': GameActions.moveCard(iid, 'battlefield', 50, 50); break
+      case 'toGrave':
       case 'toGraveyard':   GameActions.moveCard(iid, 'graveyard'); break
       case 'toExile':       GameActions.moveCard(iid, 'exile'); break
       case 'toCommand':     GameActions.moveCard(iid, 'commandZone'); break
+      case 'toLib':
       case 'toLibTop':      GameActions.moveCard(iid, 'library', undefined, undefined, 0); break
       case 'toLibBottom':   GameActions.moveCard(iid, 'library'); break
+      case 'ctr':           GameActions.addCounter(iid, 1); break
       case 'addCounter':    GameActions.addCounter(iid, 1); break
       case 'removeCounter': GameActions.addCounter(iid, -1); break
+      case 'dup':
+        // Duplicate: move a copy to battlefield (re-use same card for now)
+        GameActions.moveCard(iid, 'battlefield', 50, 50)
+        break
     }
     setContextMenu(null)
   }
@@ -266,20 +390,46 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
     zoom: getZoom(idx),
     pan: pan[idx] ?? { x: 0, y: 0 },
     onPan: (newPan: { x: number; y: number }) => setPlayerPan(idx, newPan),
-    onResetView: () => { setPlayerZoom(idx, 1); setPlayerPan(idx, { x: 0, y: 0 }) },
+    onResetView: () => {
+      const vpEl = viewportRefs.current[idx]
+      if (vpEl) {
+        const rect = vpEl.getBoundingClientRect()
+        const fitZoom = Math.max(rect.width / 1600, rect.height / 900)
+        const canvasW = 1600 * fitZoom
+        const canvasH = 900 * fitZoom
+        setPlayerZoom(idx, fitZoom)
+        setPlayerPan(idx, { x: (rect.width - canvasW) / 2, y: (rect.height - canvasH) / 2 })
+      } else {
+        setPlayerZoom(idx, 1)
+        setPlayerPan(idx, { x: 0, y: 0 })
+      }
+    },
     cardScale: 1,
     onLife: (delta: number) => { if (idx === localPid) GameActions.changeLife(delta) },
     onCardMD: (e: React.MouseEvent, iid: string) => handleCardMD(e, iid, 'battlefield'),
     onCardRC: handleCardRC,
     onHover: (card: CardInstance) => { if (!dragIid) setHoverCard(card) },
-    onHL: () => setHoverCard(null),
-    onZone: (zone: string) => setZoneViewer({ pid: idx, zone: zone as ZoneType }),
+    onHL: () => { setHoverCard(null) },
+    onZone: (zone: string) => {
+      const zoneName = zone === 'library' ? 'Library' : zone === 'graveyard' ? 'Graveyard' : zone === 'exile' ? 'Exile' : zone === 'command' ? 'Command Zone' : zone
+      notify(`Opened ${player.name}'s ${zoneName}`, 'info')
+      setZoneViewer({ pid: idx, zone: zone as ZoneType })
+    },
     onHandCardMD: handleHandCardMD,
     isHandDragOver: dragIid !== null && dragFrom !== 'hand',
     // Pass the viewport ref — coordinate math uses pan/zoom directly, not getBCR of canvas
     matRef: (el: HTMLDivElement | null) => { viewportRefs.current[idx] = el },
     outerScrollRef: { current: null },
-    onZoomWithScroll: (newZoom: number) => setPlayerZoom(idx, Math.max(0.25, Math.min(3, newZoom))),
+    onZoomWithScroll: (newZoom: number, mx: number, my: number) => {
+      const clamped = Math.max(0.25, Math.min(3, newZoom))
+      const oldZoom = getZoom(idx)
+      const currentPan = pan[idx] ?? { x: 0, y: 0 }
+      // Adjust pan so the canvas point under the cursor stays fixed
+      const newPanX = mx - (mx - currentPan.x) / oldZoom * clamped
+      const newPanY = my - (my - currentPan.y) / oldZoom * clamped
+      setPlayerZoom(idx, clamped)
+      setPlayerPan(idx, { x: newPanX, y: newPanY })
+    },
   })
 
   // ── Loading gate ───────────────────────────────────────────────────────────
@@ -288,7 +438,10 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
   }
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-background overflow-hidden relative select-none">
+    <div
+      className="h-screen w-screen flex flex-col bg-background overflow-hidden relative select-none"
+      onClick={() => { if (contextMenu) setContextMenu(null) }}
+    >
       {/* Player mats */}
       <div className="flex-1 flex flex-col gap-1 p-1 overflow-hidden min-h-0">
         {layout.top.length > 0 ? (
@@ -317,12 +470,12 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
         zoom={getZoom(localPid)}
         logOpen={logOpen}
         onPassTurn={() => GameActions.passTurn()}
-        onSettings={() => {}}
+        onSettings={() => setSettingsOpen(true)}
         onLog={() => setLogOpen(o => !o)}
         onDice={() => setDiceOpen(true)}
         onCoin={() => {
           const result = Math.random() < 0.5 ? 'Heads' : 'Tails'
-          toast(`🪙 Coin flip: ${result}`, result === 'Heads' ? 'success' : 'info')
+          notify(`🪙 Coin flip: ${result}`, result === 'Heads' ? 'success' : 'info')
         }}
         onCmdDmg={() => {}}
         onLife={(_pid, delta) => GameActions.changeLife(delta)}
@@ -355,19 +508,39 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
         <ZoneViewer
           player={players[zoneViewer.pid]}
           zone={zoneViewer.zone}
-          onClose={() => setZoneViewer(null)}
-          onMove={(iid, toZone) => GameActions.moveCard(iid, toZone, 0, 0)}
+          onClose={() => {
+            notify(`Closed ${zoneViewer.zone}`, 'default')
+            setZoneViewer(null)
+          }}
+          onMove={(iid, toZone) => {
+            // Find card name for the toast
+            const p = players[zoneViewer.pid]
+            const allCards = [...p.battlefield, ...p.hand, ...p.graveyard, ...p.exile, ...p.command, ...p.library]
+            const card = allCards.find(c => c.iid === iid)
+            const cardName = card?.faceDown ? 'a face-down card' : (card?.name ?? 'a card')
+            const zoneName = toZone === 'battlefield' ? 'Battlefield' : toZone === 'hand' ? 'Hand' : toZone === 'graveyard' ? 'Graveyard' : toZone === 'exile' ? 'Exile' : toZone
+            notify(`${cardName} → ${zoneName}`, toZone === 'graveyard' ? 'error' : toZone === 'exile' ? 'warning' : 'success')
+            GameActions.moveCard(iid, toZone, 0, 0)
+          }}
+          onReveal={(card) => {
+            notify(`Revealed: ${card.name}`, 'warning')
+          }}
           onRC={(_e, _card) => {}}
-          onScry={() => {}}
-          onMill={() => {}}
+          onScry={(n) => {
+            notify(`Scrying ${n} card${n > 1 ? 's' : ''}...`, 'info')
+          }}
+          onMill={(n) => {
+            notify(`Milled ${n} card${n > 1 ? 's' : ''}`, 'error')
+            GameActions.millCards(n)
+          }}
           onHover={setHoverCard}
           onHL={() => setHoverCard(null)}
         />
       ) : null}
 
-      {/* Action log */}
+      {/* Action log — merged server log + local client actions */}
       <ActionLogPopdown
-        entries={gameState.log}
+        entries={[...gameState.log, ...localLog]}
         open={logOpen}
         onClose={() => setLogOpen(false)}
       />
@@ -378,12 +551,12 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
           mode="dice"
           onRoll={(sides) => {
             const result = Math.floor(Math.random() * sides) + 1
-            toast(`🎲 d${sides} → ${result}${result === sides ? ' MAX!' : result === 1 ? ' NAT 1!' : ''}`, result === 1 ? 'error' : result === sides ? 'success' : 'default')
+            notify(`🎲 d${sides} → ${result}${result === sides ? ' MAX!' : result === 1 ? ' NAT 1!' : ''}`, result === 1 ? 'error' : result === sides ? 'success' : 'default')
             return result
           }}
           onFlip={() => {
             const result = Math.random() < 0.5 ? 'Heads' : 'Tails'
-            toast(`🪙 Coin flip: ${result}`, result === 'Heads' ? 'success' : 'info')
+            notify(`🪙 Coin flip: ${result}`, result === 'Heads' ? 'success' : 'info')
             return result
           }}
           onLog={() => {}}
@@ -391,27 +564,151 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
         />
       ) : null}
 
-      {/* Card hover preview — full CardZoom with image */}
-      {hoverCard && !dragIid ? (
-        <CardZoom card={hoverCard} />
+      {/* Settings modal — simplified: Back to Menu, Glass Opacity, UI Scale */}
+      {settingsOpen ? (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-md z-[9800] flex items-center justify-center"
+          onClick={() => setSettingsOpen(false)}
+        >
+          <div
+            className="liquid-glass-strong rounded-2xl p-6 w-[340px]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-bold text-lg text-primary">Settings</h3>
+              <button
+                onClick={() => setSettingsOpen(false)}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >✕</button>
+            </div>
+
+            <div className="mb-5">
+              <label className="text-xs text-muted-foreground">
+                UI Scale: <strong className="text-foreground">{Math.round(uiSettings.uiScale * 100)}%</strong>
+              </label>
+              <input
+                type="range"
+                min={70} max={150} step={5}
+                value={uiSettings.uiScale * 100}
+                onChange={(e) => setUiSettings(s => ({ ...s, uiScale: Number(e.target.value) / 100 }))}
+                className="w-full mt-2 accent-primary"
+              />
+            </div>
+
+            <div className="mb-6">
+              <label className="text-xs text-muted-foreground">
+                Glass Opacity: <strong className="text-foreground">{Math.round(uiSettings.glassOpacity * 100)}%</strong>
+              </label>
+              <input
+                type="range"
+                min={30} max={100} step={5}
+                value={uiSettings.glassOpacity * 100}
+                onChange={(e) => setUiSettings(s => ({ ...s, glassOpacity: Number(e.target.value) / 100 }))}
+                className="w-full mt-2 accent-primary"
+              />
+            </div>
+
+            <button
+              onClick={() => { window.location.href = '/' }}
+              className="w-full py-2.5 rounded-xl text-sm font-bold text-red-400 border border-red-500/30 hover:bg-red-500/10 transition-colors"
+            >
+              Back to Menu
+            </button>
+          </div>
+        </div>
       ) : null}
+
+      {/* Card hover preview — follows mouse, scroll to scale */}
+      {hoverCard && !dragIid && !hoverCard.faceDown ? (() => {
+        const card = hoverCard
+        const showBack = card.showBack && card.imgBack
+        const img = showBack ? (card.imgBack ?? null) : card.img
+        const name = showBack ? (card.backName || card.name) : card.name
+        const type = showBack ? (card.backType || card.typeLine) : card.typeLine
+        const pw = showBack ? card.backPower : card.power
+        const tg = showBack ? card.backTough : card.tough
+        const counters = Object.entries(card.counters || {}).filter(([, v]) => v > 0)
+        // Position: offset from cursor, stay on screen
+        const pw2 = Math.round(200 * previewScale)
+        const ph = Math.round(280 * previewScale)
+        const vw = typeof window !== 'undefined' ? window.innerWidth : 1400
+        const vh = typeof window !== 'undefined' ? window.innerHeight : 900
+        const flipX = hoverPos.x + pw2 + 30 > vw
+        const flipY = hoverPos.y + ph + 80 > vh
+        const px = flipX ? hoverPos.x - pw2 - 16 : hoverPos.x + 20
+        const py = flipY ? Math.max(8, hoverPos.y - ph - 16) : hoverPos.y + 12
+        return (
+          <div
+            className="fixed z-[8000] pointer-events-none flex flex-col gap-2"
+            style={{ left: px, top: py, width: pw2 }}
+          >
+            <div
+              className="rounded-lg overflow-hidden border border-border/50 shadow-2xl shadow-black/60"
+              style={{ width: pw2, height: ph }}
+            >
+              <CardImage src={img} alt={name} fallbackText={name} />
+            </div>
+            <div className="liquid-glass rounded-lg p-3 border border-border/30" style={{ width: pw2 }}>
+              <h3 className="font-bold text-foreground text-sm mb-1 leading-tight">{name}</h3>
+              <p className="text-xs text-muted-foreground mb-2">{type}</p>
+              {card.manaCost && (
+                <div className="flex items-center gap-2 mb-2">
+                  <ManaSymbols cost={card.manaCost} size={14} />
+                  <span className="text-xs text-muted-foreground">CMC {card.cmc}</span>
+                </div>
+              )}
+              {card.oracle && (
+                <p className="text-xs text-muted-foreground leading-relaxed border-t border-border/30 pt-2 whitespace-pre-wrap">
+                  {card.oracle}
+                </p>
+              )}
+              <div className="flex items-center gap-3 mt-2 pt-2 border-t border-border/30">
+                {pw != null && (
+                  <span className="text-sm font-bold text-amber-400">{pw}/{tg}</span>
+                )}
+                {card.loyalty != null && (
+                  <span className="text-sm font-bold text-blue-400 flex items-center gap-1">
+                    <span className="text-xs">L</span>{card.loyalty}
+                  </span>
+                )}
+                <span className="text-xs ml-auto font-medium" style={{ color: getRarityColor(card.rarity) }}>
+                  {card.set}
+                </span>
+              </div>
+              {counters.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2 pt-2 border-t border-border/30">
+                  {counters.map(([ctype, val]) => (
+                    <span key={ctype} className="text-xs px-2 py-0.5 rounded bg-secondary font-medium text-emerald-400">
+                      {ctype}: {val}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )
+      })() : null}
 
       {/* Drag ghost — semi-transparent card following the cursor */}
       {dragIid && dragCard ? (
         <div
           className="fixed pointer-events-none z-[9999]"
           style={{
-            left: dragPos.x - 63,
-            top: dragPos.y - 88,
-            width: 126,
-            height: 176,
-            opacity: 0.75,
-            transform: 'rotate(-3deg) scale(1.05)',
-            transition: 'none',
+            left: dragPos.x - 45,
+            top: dragPos.y - 63,
+            width: 90,
+            height: 126,
+            opacity: 0.8,
+            transform: 'rotate(-2deg)',
+            willChange: 'left, top',
           }}
         >
           <div className="w-full h-full rounded-md overflow-hidden ring-2 ring-primary shadow-[0_8px_32px_rgba(0,0,0,0.6)]">
-            {dragCard.img ? (
+            {dragCard.faceDown ? (
+              <div className="w-full h-full bg-gradient-to-br from-indigo-900 to-violet-950 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-full border-2 border-white/20" />
+              </div>
+            ) : dragCard.img ? (
               <img
                 src={dragCard.img}
                 alt={dragCard.name}
