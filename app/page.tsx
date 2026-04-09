@@ -23,7 +23,7 @@ import { ContextMenu } from '@/components/game/context-menu'
 import { ZoneViewer } from '@/components/game/zone-viewer'
 import { CardImage } from '@/components/game/card-image'
 import { MorphingText } from "@/components/ui/morphing-text"
-import { GiCrownOfThorns , GiFootTrip, GiAlienBug } from "react-icons/gi";
+import { GiCrownOfThorns , GiFootTrip } from "react-icons/gi";
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from '@/components/ui/button'
