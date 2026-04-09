@@ -20,5 +20,3 @@ MTG Commander in browser. No rules, meant to be played while voice-chatting.
 - **Card data & images:** [Scryfall](https://scryfall.com/)
 - **UI components:** [shadcn/ui](https://ui.shadcn.com/)
 - **Framework:** [Next.js](https://nextjs.org/) by Vercel
-
-*AstralMagic is not affiliated with Wizards of the Coast. Magic: The Gathering and all related properties are trademarks of Wizards of the Coast LLC.*
