@@ -14,7 +14,6 @@ import {
 // Components
 import { SetupScreen } from '@/components/game/setup-screen'
 import { LoadingScreen } from '@/components/game/loading-screen'
-import { CommanderSelectScreen } from '@/components/game/commander-select'
 import { CenterDivider } from '@/components/game/center-divider'
 import { ActionLogPopdown } from '@/components/game/action-log-popdown'
 import { PlayerMat } from '@/components/game/player-mat'
@@ -795,13 +794,6 @@ if (gameMode === 'select') {
             </div>
           )}
         </div>
-            <button
-              onClick={() => setGameMode('single')}
-              className="h-16 px-6 rounded-4xl flex items-center gap-3 hover: border-foreground/50 transition-all border border-transparent whitespace-nowrap"
-            >
-              <GiAlienBug className="w-8 h-8"/>
-              <span className="text-lg font-bold">debug</span>
-            </button>
           </div>
 
         </div>

@@ -83,15 +83,15 @@ export type ScreenType = 'setup' | 'loading' | 'commander-select' | 'game'
 
 // Player Palettes - Flat vibrant colors
 export const PALETTES: PlayerPalette[] = [
-  { accent: '#f44a4a', glow: 'rgba(244,74,74,0.15)', bg: '#3d2d2d', border: '#6a4040' },   // Strawberry Red
-  { accent: '#fb8f23', glow: 'rgba(251,143,35,0.15)', bg: '#3d352d', border: '#6a5540' },  // Dark Orange
-  { accent: '#fee440', glow: 'rgba(254,228,64,0.15)', bg: '#3d3d2d', border: '#6a6a40' },  // Banana Cream
-  { accent: '#7aff60', glow: 'rgba(122,255,96,0.15)', bg: '#2d3d2d', border: '#406a40' },  // Mint Glow
-  { accent: '#00f5d4', glow: 'rgba(0,245,212,0.15)', bg: '#2d3d3a', border: '#406a60' },   // Aquamarine
-  { accent: '#00bbf9', glow: 'rgba(0,187,249,0.15)', bg: '#2d353d', border: '#40556a' },   // Deep Sky Blue
-  { accent: '#9b5de5', glow: 'rgba(155,93,229,0.15)', bg: '#352d3d', border: '#55406a' },  // Lavender Purple
-  { accent: '#f15bb5', glow: 'rgba(241,91,181,0.15)', bg: '#3d2d38', border: '#6a4058' },  // Deep Pink
-]
+  { accent: '#3b82f6', glow: 'rgba(59, 130, 246, 0.3)', bg: '#1e2227', border: '#2d353f' },   // Cobalt (Universal Blue)
+  { accent: '#10b981', glow: 'rgba(16, 185, 129, 0.3)', bg: '#1e2724', border: '#2d3f38' },   // Emerald Peak
+  { accent: '#8b5cf6', glow: 'rgba(139, 92, 246, 0.3)', bg: '#221e27', border: '#332d3f' },   // Modern Violet
+  { accent: '#f43f5e', glow: 'rgba(244, 63, 94, 0.3)',  bg: '#271e20', border: '#3f2d31' },   // Crimson Frost
+  { accent: '#06b6d4', glow: 'rgba(6, 182, 212, 0.3)',  bg: '#1e2627', border: '#2d3c3f' },   // Electric Cyan
+  { accent: '#f59e0b', glow: 'rgba(245, 158, 11, 0.3)', bg: '#27231e', border: '#3f382d' },   // Amber Glow
+  { accent: '#ec4899', glow: 'rgba(236, 72, 153, 0.3)', bg: '#271e23', border: '#3f2d37' },   // Magenta Neon
+  { accent: '#64748b', glow: 'rgba(100, 116, 139, 0.3)', bg: '#1f2123', border: '#2f3337' },  // Slate Tech
+];
 
 // Counter Types
 export const COUNTER_TYPES = [

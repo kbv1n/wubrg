@@ -2,6 +2,7 @@
 
 import { cn } from '@/lib/utils'
 import { Swords } from 'lucide-react'
+import { GiGluttonousSmile } from "react-icons/gi";
 
 interface LoadingScreenProps {
   done: number
@@ -16,14 +17,8 @@ export function LoadingScreen({ done, total, current }: LoadingScreenProps) {
     <div className="min-h-screen bg-background flex flex-col items-center justify-center">
       {/* Logo */}
       <div className="flex items-center gap-3 mb-2">
-        <Swords className="w-8 h-8 text-primary animate-pulse" />
-        <h1 className="text-4xl font-black tracking-tight text-primary">
-          AstralMagic
-        </h1>
+      <GiGluttonousSmile className="w-10 h-10 text-primary" />
       </div>
-      <p className="text-xs text-muted-foreground tracking-[0.4em] uppercase mb-12">
-        Loading Card Data
-      </p>
 
       {/* Progress bar */}
       <div className="w-96 max-w-[85vw]">
@@ -31,7 +26,7 @@ export function LoadingScreen({ done, total, current }: LoadingScreenProps) {
           <div 
             className={cn(
               "h-full rounded-full transition-all duration-300",
-              "bg-primary"
+              "bg-foreground"
             )}
             style={{ width: `${pct}%` }}
           />

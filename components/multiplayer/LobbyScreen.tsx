@@ -32,7 +32,7 @@ export function LobbyScreen({ gameState, localPlayerId, roomId, onLeave }: Lobby
   const [showCustomInput, setShowCustomInput] = useState(false)
   const [copied, setCopied] = useState(false)
   const [showDeckInput, setShowDeckInput] = useState(true)
-  const [showPlaymatPicker, setShowPlaymatPicker] = useState(false)
+  const [showPlaymatPicker, setShowPlaymatPicker] = useState(true)
 
   const localPlayer = gameState.players.get(localPlayerId)
   const isHost = gameState.hostId === localPlayerId
@@ -110,7 +110,7 @@ export function LobbyScreen({ gameState, localPlayerId, roomId, onLeave }: Lobby
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
-      <header className="border-b border-border/50 p-4">
+      <header className=" p-4">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-bottom gap-3 inline-flex">
         <MorphingText texts={texts} className="scale-60" />
@@ -281,6 +281,7 @@ export function LobbyScreen({ gameState, localPlayerId, roomId, onLeave }: Lobby
                   <Button
                     size="sm"
                     variant="ghost"
+                    
                     className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
                     onClick={handleClearPlaymat}
                   >

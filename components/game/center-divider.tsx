@@ -54,18 +54,20 @@ export function CenterDivider({
     <div className="absolute left-0 right-0 top-[calc(50%-20px)] -translate-y-1/2 z-50 pointer-events-none flex flex-col items-center gap-2 px-4">
       {/* Main Action Bar */}
       <div 
-        className="pointer-events-auto liquid-glass-readable rounded-4xl px-5 py-3 flex items-center gap-4"
+        className="pointer-events-auto bg-foreground/70 backdrop-blur-sm rounded-2xl px-5 py-3 flex items-center gap-4"
         style={{
           boxShadow: `0 8px 32px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.1)`,
         }}
       >
         {/* Logo */}
+        <Backlight blur={0}>
+
         <div className="flex items-center gap-2 pr-4 border-r border-white/10">
           <GiGluttonousSmile className='w-12 h-12 fill-primary-foreground rounded-full p-1 '/>
         </div>
-
+        </Backlight>
         {/* Active player indicator with backlight effect */}
-        <Backlight blur={12} className="flex items-center">
+        <Backlight blur={20} className="flex items-center rounded-xl">
           <div
             className="flex items-center gap-2 px-4 py-2 rounded-xl transition-all duration-300"
             style={{
@@ -77,10 +79,10 @@ export function CenterDivider({
               className="w-3 h-3 rounded-full animate-pulse-glow"
               style={{ background: pal.accent, boxShadow: `0 0 12px ${pal.accent}` }}
             />
-            <span className="font-bold text-sm" style={{ color: pal.accent }}>
+            <span className="font-bold text-background text-sm">
               {currentPlayer.name}&apos;s Turn
             </span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-white/10" style={{ color: pal.accent }}>
+            <span className="text-xs px-2 py-0.5 rounded-full text-background">
               Round {round}
             </span>
           </div>
@@ -110,17 +112,17 @@ export function CenterDivider({
                 title={`${p.name} - Click for Commander Damage`}
               >
                 <span 
-                  className="text-[10px] font-semibold truncate max-w-[60px]"
+                  className="text-[12px] font-semibold truncate max-w-[60px]"
                   style={{ color: p.pal.accent }}
                 >
                   {isLocal ? 'You' : p.name.slice(0, 8)}
                 </span>
                 <span
                   className={cn(
-                    'text-xl font-black tabular-nums leading-none',
+                    'text-xl font-bold tabular-nums leading-none',
                     p.life <= 10 && 'text-red-500',
                     p.life > 10 && p.life <= 20 && 'text-amber-500',
-                    p.life > 20 && 'text-foreground'
+                    p.life > 20 && 'text-background'
                   )}
                 >
                   {p.life}

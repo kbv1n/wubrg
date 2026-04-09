@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, type RefObject } from 'react'
+import { useState, useEffect, useRef, useCallback, type RefObject } from 'react'
 import { cn } from '@/lib/utils'
 import type { Player, CardInstance } from '@/lib/game-types'
 import { CardToken } from './card-token'
@@ -58,10 +58,32 @@ export function PlayerMat({
   const { name, pal, life, poison, library, hand, battlefield, graveyard, exile, command } = player
   
   const [hoverIdx, setHoverIdx] = useState(-1)
+  const dockRef = useRef<HTMLDivElement>(null)
   const [isPanning, setIsPanning] = useState(false)
   const panStart = useRef<{ mx: number; my: number; px: number; py: number } | null>(null)
   const [spaceDown, setSpaceDown] = useState(false)
   const [handVisible, setHandVisible] = useState(true) // hand open by default
+
+  // Compute hovered card from mouse position on the dock container —
+  // avoids per-card mouseenter/leave which causes infinite layout thrashing
+  const handleDockMouseMove = useCallback((e: React.MouseEvent) => {
+    const dock = dockRef.current
+    if (!dock || hand.length === 0) return
+    const rect = dock.getBoundingClientRect()
+    const relX = e.clientX - rect.left
+    const cardWidth = rect.width / hand.length
+    const idx = Math.floor(relX / cardWidth)
+    const clamped = Math.max(0, Math.min(hand.length - 1, idx))
+    if (clamped !== hoverIdx) {
+      setHoverIdx(clamped)
+      if (hand[clamped]) onHover(hand[clamped])
+    }
+  }, [hand, hoverIdx, onHover])
+
+  const handleDockMouseLeave = useCallback(() => {
+    setHoverIdx(-1)
+    onHL()
+  }, [onHL])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -308,6 +330,7 @@ export function PlayerMat({
             height: 900,
             transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
             transformOrigin: '0 0',
+            willChange: 'transform',
             background: player.playmat
               ? undefined
               : pal.bg,
@@ -423,7 +446,12 @@ export function PlayerMat({
             "animate-slide-up"
           )}
         >
-          <div className="dock-hand">
+          <div
+            ref={dockRef}
+            className="dock-hand"
+            onMouseMove={handleDockMouseMove}
+            onMouseLeave={handleDockMouseLeave}
+          >
             {!isLocal ? (
               hand.map((_, i) => (
                 <div 
@@ -442,12 +470,11 @@ export function PlayerMat({
                   <div
                     key={c.iid}
                     className="dock-card cursor-grab select-none"
-                    style={{ 
+                    style={{
                       '--dock-scale': scale,
+                      '--dock-margin': hand.length > 10 ? '-35px' : hand.length > 7 ? '-28px' : '-20px',
                       zIndex: isHovered ? 100 : 50 - Math.abs(idx - (hand.length / 2))
                     } as React.CSSProperties}
-                    onMouseEnter={() => { setHoverIdx(idx); onHover(c) }}
-                    onMouseLeave={() => { setHoverIdx(-1); onHL() }}
                   >
                     <div
                       className={cn(

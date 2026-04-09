@@ -1,5 +1,6 @@
 'use client'
 
+import { useRef, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import type { CardInstance } from '@/lib/game-types'
 import { CardImage, CardBack } from './card-image'
@@ -21,6 +22,9 @@ export function CardToken({
   onMouseEnter,
   onMouseLeave
 }: CardTokenProps) {
+  const hasEntered = useRef(false)
+  useEffect(() => { hasEntered.current = true }, [])
+
   const W = Math.round(126 * scale)
   const H = Math.round(176 * scale)
 
@@ -43,11 +47,11 @@ export function CardToken({
         height: H,
         zIndex: card.z,
         transform: `rotate(${card.tapped ? 90 : 0}deg)`,
-        transition: 'transform 0.15s ease, left 0.05s ease, top 0.05s ease',
+        transition: 'transform 0.2s cubic-bezier(0.25, 1, 0.5, 1), left 0.3s cubic-bezier(0.25, 1, 0.5, 1), top 0.3s cubic-bezier(0.25, 1, 0.5, 1)',
       }}
     >
-      {/* Inner wrapper: entrance animation only — never touches the rotate */}
-      <div className="w-full h-full relative animate-card-enter">
+      {/* Inner wrapper: entrance animation only on first mount — never touches the rotate */}
+      <div className={cn("w-full h-full relative", !hasEntered.current && "animate-card-enter")}>
 
         {/* Card frame */}
         <div

@@ -5,6 +5,7 @@ import { Check, Crown, Wifi, WifiOff } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { PALETTES } from "@/lib/game-types"
 import type { PlayerState } from "@/lib/game-types"
+import { GiCrownOfThorns, GiDodging  } from "react-icons/gi"
 
 interface PlayerSlotProps {
   player: PlayerState
@@ -41,7 +42,7 @@ export function PlayerSlot({
         "p-4 rounded-xl border transition-all",
         player.ready 
           ? "bg-primary/10 border-primary/40" 
-          : "bg-card border-border/50"
+          : "bg-background border-border/50"
       )}
       style={pal ? { 
         borderColor: `${pal.accent}60`,
@@ -52,11 +53,12 @@ export function PlayerSlot({
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           {/* Connection indicator */}
-          {player.connected ? (
-            <Wifi className="w-4 h-4 text-primary" />
-          ) : (
-            <WifiOff className="w-4 h-4 text-destructive" />
-          )}
+          {player.connected && !isHost ? (
+            <GiDodging className="w-5 h-5 text-primary" />
+          ) : isHost ? (
+           <GiCrownOfThorns  className="w-6 h-6" />
+
+           ) : null}
           
           {/* Player name — editable for local player */}
           {isLocal && onNameChange ? (
@@ -74,7 +76,7 @@ export function PlayerSlot({
             ) : (
               <button
                 onClick={() => { setNameInput(player.name); setEditingName(true) }}
-                className="font-bold text-lg underline-offset-2 hover:underline cursor-text"
+                className="font-bold stroke-black stroke-5 text-lg underline-offset-2 hover:underline cursor-text [-webkit-text-stroke-width:1px] [-webkit-text-stroke-color:rgba(0,0,0,0.1)]"
                 style={pal ? { color: pal.accent } : undefined}
                 title="Click to edit your name"
               >
@@ -88,19 +90,6 @@ export function PlayerSlot({
           )}
           
           {/* Host badge */}
-          {isHost ? (
-            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#fb8f23]/20 text-[#fb8f23] text-xs font-medium">
-              <Crown className="w-3 h-3" />
-              Host
-            </span>
-          ) : null}
-
-          {/* You indicator */}
-          {isLocal ? (
-            <span className="px-2 py-0.5 rounded-full bg-primary/20 text-primary text-xs font-medium">
-              You
-            </span>
-          ) : null}
         </div>
 
         {/* Ready indicator */}
