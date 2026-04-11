@@ -22,6 +22,7 @@ interface PlayerMatProps {
   cardScale: number
   onLife: (delta: number) => void
   onCardMD: (e: React.MouseEvent, iid: string) => void
+  onCardClick: (iid: string) => void
   onCardRC: (e: React.MouseEvent, iid: string, zone: string) => void
   onHover: (card: CardInstance) => void
   onHL: () => void
@@ -45,6 +46,7 @@ export function PlayerMat({
   cardScale,
   onLife,
   onCardMD,
+  onCardClick,
   onCardRC,
   onHover,
   onHL,
@@ -348,6 +350,7 @@ export function PlayerMat({
               card={card}
               scale={cardScale}
               onMouseDown={(e) => onCardMD(e, card.iid)}
+              onClick={() => onCardClick(card.iid)}
               onContextMenu={(e) => onCardRC(e, card.iid, 'battlefield')}
               onMouseEnter={() => onHover(card)}
               onMouseLeave={onHL}
