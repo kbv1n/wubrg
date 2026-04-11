@@ -8,6 +8,7 @@ import { CardImage, CardBack } from './card-image'
 interface CardTokenProps {
   card: CardInstance
   scale?: number
+  onClick?: (e: React.MouseEvent) => void
   onMouseDown?: (e: React.MouseEvent) => void
   onContextMenu?: (e: React.MouseEvent) => void
   onMouseEnter?: () => void
@@ -17,6 +18,7 @@ interface CardTokenProps {
 export function CardToken({
   card,
   scale = 1,
+  onClick,
   onMouseDown,
   onContextMenu,
   onMouseEnter,
@@ -35,6 +37,7 @@ export function CardToken({
     // Outer div owns: position + tap rotation + drag events
     // The rotation is an inline style so it always beats any CSS animation
     <div
+      onClick={onClick}
       onMouseDown={onMouseDown}
       onContextMenu={onContextMenu}
       onMouseEnter={onMouseEnter}
@@ -47,7 +50,7 @@ export function CardToken({
         height: H,
         zIndex: card.z,
         transform: `rotate(${card.tapped ? 90 : 0}deg)`,
-        transition: 'transform 0.2s cubic-bezier(0.25, 1, 0.5, 1), left 0.3s cubic-bezier(0.25, 1, 0.5, 1), top 0.3s cubic-bezier(0.25, 1, 0.5, 1)',
+        transition: 'transform 0.2s cubic-bezier(0.25, 1, 0.5, 1)',
       }}
     >
       {/* Inner wrapper: entrance animation only on first mount — never touches the rotate */}

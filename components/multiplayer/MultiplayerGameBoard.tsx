@@ -16,6 +16,7 @@ import { lookupCard, fetchScryfall } from '@/lib/game-data'
 import { GameActions } from '@/lib/socket-client'
 import type { MPGameState, CardState as MPCardState, PlayerState as MPPlayerState } from '@/lib/game-types'
 import { useToast } from '@/components/game/toast-system'
+import { SFX } from '@/lib/sounds'
 import { GiGluttonousSmile } from "react-icons/gi";
 
 interface MultiplayerGameBoardProps {
@@ -98,7 +99,7 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
       setLoadProgress({ done, total: Math.max(total, 1), current })
     })
       .catch(() => {})
-      .finally(() => setCardsLoaded(true))
+      .finally(() => { setCardsLoaded(true); SFX.gameStart() })
   }, [])
 
   const { toast } = useToast()
@@ -138,6 +139,8 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
   const [dragFrom, setDragFrom] = useState<string>('')
   const [dragCard, setDragCard] = useState<CardInstance | null>(null)
   const [dragPos, setDragPos] = useState({ x: 0, y: 0 })
+  const dragStartPos = useRef({ x: 0, y: 0 })
+  const wasDragged = useRef(false)
 
   // Refs for viewport-div per mat (NOT the transformed canvas — we do the math ourselves)
   const viewportRefs = useRef<Record<number, HTMLDivElement | null>>({})
@@ -156,17 +159,23 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
   toastRef.current = toast
 
   // ── Log → Toast sync: toast new log entries as they appear ─────────────
+  // Track which server log entries we've already seen (by content) to prevent duplicates
+  const seenLogEntries = useRef(new Set<string>())
   const logLen = gameState.log?.length ?? 0
   useEffect(() => {
     const log = gameState.log ?? []
-    // First run: snapshot current length, don't toast pre-existing entries
+    // First run: snapshot all existing entries so we don't toast them
     if (prevLogLen.current < 0) {
       prevLogLen.current = log.length
+      for (const entry of log) seenLogEntries.current.add(entry)
       return
     }
     if (log.length > prevLogLen.current) {
       const newEntries = log.slice(prevLogLen.current)
       for (const entry of newEntries) {
+        // Skip entries we've already seen (handles server re-sending old entries)
+        if (seenLogEntries.current.has(entry)) continue
+        seenLogEntries.current.add(entry)
         let variant: 'default' | 'success' | 'error' | 'warning' | 'info' = 'default'
         if (entry.includes('damage') || entry.includes('lost') || entry.includes('destroyed')) variant = 'error'
         else if (entry.includes('gained') || entry.includes('drew') || entry.includes('healed')) variant = 'success'
@@ -176,7 +185,6 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
       }
       prevLogLen.current = log.length
     }
-  // Depend on log length (primitive) to avoid re-firing on every gameState reference change
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [logLen])
   const getZoom = (pid: number) => zoom[pid] ?? 1
@@ -257,6 +265,8 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
     setDragFrom(zone)
     setDragCard(found)
     setDragPos({ x: e.clientX, y: e.clientY })
+    dragStartPos.current = { x: e.clientX, y: e.clientY }
+    wasDragged.current = false
   }, [players])
 
   const handleHandCardMD = useCallback((e: React.MouseEvent, iid: string) => {
@@ -270,7 +280,13 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
   // Global mouse move — update ghost position + hover position
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
-      if (dragIid) setDragPos({ x: e.clientX, y: e.clientY })
+      if (dragIid) {
+        setDragPos({ x: e.clientX, y: e.clientY })
+        // Mark as dragged if moved more than 5px from start
+        const dx = e.clientX - dragStartPos.current.x
+        const dy = e.clientY - dragStartPos.current.y
+        if (dx * dx + dy * dy > 25) wasDragged.current = true
+      }
       setHoverPos({ x: e.clientX, y: e.clientY })
     }
     // When hovering a card, capture wheel to scale preview instead of zooming the board
@@ -306,6 +322,7 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
           // Card is 126×176 on a 1600×900 canvas → ~3.9% and ~9.8%
           const cx = Math.max(0, Math.min(95, x - (63 / 1600) * 100))
           const cy = Math.max(0, Math.min(90, y - (88 / 900) * 100))
+          SFX.playCard()
           GameActions.moveCard(dragIid, 'battlefield', cx, cy)
           break
         }
@@ -407,6 +424,14 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
     cardScale: 1,
     onLife: (delta: number) => { if (idx === localPid) GameActions.changeLife(delta) },
     onCardMD: (e: React.MouseEvent, iid: string) => handleCardMD(e, iid, 'battlefield'),
+    onCardClick: (iid: string) => {
+      // Left-click to toggle tap/untap — only if mouse didn't move (not a drag)
+      if (wasDragged.current) return
+      SFX.tap()
+      const card = player.battlefield.find(c => c.iid === iid)
+      if (card?.tapped) GameActions.untapCard(iid)
+      else GameActions.tapCard(iid)
+    },
     onCardRC: handleCardRC,
     onHover: (card: CardInstance) => { if (!dragIid) setHoverCard(card) },
     onHL: () => { setHoverCard(null) },
@@ -469,19 +494,24 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
         hasDrawnInitial={players[localPid]?.hand.length > 0}
         zoom={getZoom(localPid)}
         logOpen={logOpen}
-        onPassTurn={() => GameActions.passTurn()}
-        onSettings={() => setSettingsOpen(true)}
-        onLog={() => setLogOpen(o => !o)}
-        onDice={() => setDiceOpen(true)}
+        onPassTurn={() => { SFX.uiClick(); GameActions.passTurn() }}
+        onSettings={() => { SFX.uiClick(); setSettingsOpen(true) }}
+        onLog={() => { SFX.uiClick(); setLogOpen(o => !o) }}
+        onDice={() => { SFX.uiClick(); setDiceOpen(true) }}
         onCoin={() => {
+          SFX.coinFlip()
           const result = Math.random() < 0.5 ? 'Heads' : 'Tails'
           notify(`🪙 Coin flip: ${result}`, result === 'Heads' ? 'success' : 'info')
         }}
-        onCmdDmg={() => {}}
-        onLife={(_pid, delta) => GameActions.changeLife(delta)}
-        onDraw={(_pid) => GameActions.drawCards(1)}
-        onDraw7={(_pid) => GameActions.drawCards(7)}
-        onUntapAll={(_pid) => GameActions.untapAll()}
+        onLife={(_pid, delta) => { SFX.uiClick(); GameActions.changeLife(delta) }}
+        onDraw={(_pid) => { SFX.drawCard(); GameActions.drawCards(1) }}
+        onDraw7={(_pid) => { SFX.drawCard(); GameActions.drawCards(7) }}
+        onUntapAll={(_pid) => { SFX.uiClick(); GameActions.untapAll() }}
+        onShuffle={(_pid) => {
+          SFX.shuffle()
+          GameActions.shuffleLibrary()
+          notify('Shuffled library', 'info')
+        }}
       />
 
       {/* Context Menu */}
@@ -520,7 +550,7 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
             const cardName = card?.faceDown ? 'a face-down card' : (card?.name ?? 'a card')
             const zoneName = toZone === 'battlefield' ? 'Battlefield' : toZone === 'hand' ? 'Hand' : toZone === 'graveyard' ? 'Graveyard' : toZone === 'exile' ? 'Exile' : toZone
             notify(`${cardName} → ${zoneName}`, toZone === 'graveyard' ? 'error' : toZone === 'exile' ? 'warning' : 'success')
-            GameActions.moveCard(iid, toZone, 0, 0)
+            GameActions.moveCard(iid, toZone, toZone === 'battlefield' ? 50 : undefined, toZone === 'battlefield' ? 50 : undefined)
           }}
           onReveal={(card) => {
             notify(`Revealed: ${card.name}`, 'warning')
@@ -550,6 +580,7 @@ export function MultiplayerGameBoard({ gameState, localPlayerId }: MultiplayerGa
         <DiceModal
           mode="dice"
           onRoll={(sides) => {
+            SFX.diceRoll()
             const result = Math.floor(Math.random() * sides) + 1
             notify(`🎲 d${sides} → ${result}${result === sides ? ' MAX!' : result === 1 ? ' NAT 1!' : ''}`, result === 1 ? 'error' : result === sides ? 'success' : 'default')
             return result

@@ -3,7 +3,7 @@
 import { cn } from '@/lib/utils'
 import type { Player } from '@/lib/game-types'
 import { Backlight } from '@/components/ui/backlight'
-import { Settings, Dice6, Coins, ChevronDown, Minus, Plus, ArrowRight, RotateCcw, Layers } from 'lucide-react'
+import { Settings, Dice6, Coins, ChevronDown, Minus, Plus, ArrowRight, RotateCcw, Layers, Shuffle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { GiGluttonousSmile } from "react-icons/gi";
 interface ActionBarProps {
@@ -19,11 +19,11 @@ interface ActionBarProps {
   onDice: () => void
   onCoin: () => void
   logOpen: boolean
-  onCmdDmg: (pid: number) => void
   onLife: (pid: number, delta: number) => void
   onDraw: (pid: number) => void
   onDraw7: (pid: number) => void
   onUntapAll: (pid: number) => void
+  onShuffle: (pid: number) => void
 }
 
 export function CenterDivider({
@@ -38,11 +38,11 @@ export function CenterDivider({
   onLog,
   onDice,
   onCoin,
-  onCmdDmg,
   onLife,
   onDraw,
   onDraw7,
   onUntapAll,
+  onShuffle,
 }: ActionBarProps) {
   if (!players.length || !players[0]) return null
   const currentPlayer = players[turn] || players[0]
@@ -96,12 +96,10 @@ export function CenterDivider({
             const isActive = p.pid === turn
             const isLocal = p.pid === localPid
             return (
-              <button
+              <div
                 key={p.pid}
-                onClick={() => onCmdDmg(p.pid)}
                 className={cn(
                   'flex flex-col items-center px-3 py-1.5 rounded-xl transition-all duration-200',
-                  'hover:bg-white/10 cursor-pointer',
                   isActive && 'ring-2'
                 )}
                 style={{
@@ -109,7 +107,6 @@ export function CenterDivider({
                   outline: isActive ? `2px solid ${p.pal.accent}` : 'none',
                   outlineOffset: '2px',
                 }}
-                title={`${p.name} - Click for Commander Damage`}
               >
                 <span 
                   className="text-[12px] font-semibold truncate max-w-[60px]"
@@ -127,7 +124,7 @@ export function CenterDivider({
                 >
                   {p.life}
                 </span>
-              </button>
+              </div>
             )
           })}
         </div>
@@ -249,6 +246,18 @@ export function CenterDivider({
         >
           <RotateCcw className="w-4 h-4 mr-1" />
           Untap
+        </Button>
+
+        <div className="w-px h-5 bg-white/10" />
+
+        <Button
+          onClick={() => onShuffle(localPid)}
+          variant="ghost"
+          className="h-8 text-sm px-3 rounded-lg font-semibold text-[#fb8f23] hover:text-[#fb8f23]/80 hover:bg-[#fb8f23]/10"
+          title="Shuffle deck"
+        >
+          <Shuffle className="w-4 h-4 mr-1" />
+          Shuffle
         </Button>
 
         <div className="w-px h-5 bg-white/10" />

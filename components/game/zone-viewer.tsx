@@ -1,12 +1,18 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { cn } from '@/lib/utils'
 import type { Player, CardInstance, ZoneType } from '@/lib/game-types'
 import { CardImage, CardBack } from './card-image'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { X, Eye, Swords, Hand, Skull, Sparkles, Search } from 'lucide-react'
+import { X, Eye, Swords, Hand, Skull, Sparkles, Search, Plus } from 'lucide-react'
+
+interface ScryfallCard {
+  name: string
+  image_uris?: { small: string; normal: string; png: string }
+  card_faces?: { image_uris?: { small: string; normal: string; png: string } }[]
+}
 
 interface ZoneViewerProps {
   player: Player
@@ -19,6 +25,7 @@ interface ZoneViewerProps {
   onScry: (n: number) => void
   onMill: (n: number) => void
   onReveal?: (card: CardInstance) => void
+  onCreateToken?: (name: string, imageUrl: string) => void
 }
 
 const ZONE_LABELS: Record<string, string> = {
@@ -39,7 +46,8 @@ export function ZoneViewer({
   onRC,
   onScry,
   onMill,
-  onReveal
+  onReveal,
+  onCreateToken
 }: ZoneViewerProps) {
   const [query, setQuery] = useState('')
   const [millN, setMillN] = useState('')
@@ -48,7 +56,12 @@ export function ZoneViewer({
   const [showMillInput, setShowMillInput] = useState(false)
   const [revealed, setRevealed] = useState<Set<string>>(new Set())
   const [bannerVisible, setBannerVisible] = useState(true)
+  const [showTokenSearch, setShowTokenSearch] = useState(false)
+  const [tokenQuery, setTokenQuery] = useState('')
+  const [tokenResults, setTokenResults] = useState<ScryfallCard[]>([])
+  const [tokenLoading, setTokenLoading] = useState(false)
   const logRef = useRef<HTMLDivElement>(null)
+  const tokenSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const cards = player[zone] || []
   const filtered = query 
@@ -85,6 +98,44 @@ export function ZoneViewer({
     onMill(n)
     setShowMillInput(false)
     setMillN('')
+  }
+
+  const searchTokens = useCallback((q: string) => {
+    if (tokenSearchTimer.current) clearTimeout(tokenSearchTimer.current)
+    if (!q.trim()) {
+      setTokenResults([])
+      return
+    }
+    tokenSearchTimer.current = setTimeout(async () => {
+      setTokenLoading(true)
+      try {
+        const res = await fetch(
+          `https://api.scryfall.com/cards/search?q=type:token+${encodeURIComponent(q)}&unique=prints&order=name`
+        )
+        if (res.ok) {
+          const data = await res.json()
+          setTokenResults(data.data?.slice(0, 20) ?? [])
+        } else {
+          setTokenResults([])
+        }
+      } catch {
+        setTokenResults([])
+      } finally {
+        setTokenLoading(false)
+      }
+    }, 350)
+  }, [])
+
+  const getCardImage = (card: ScryfallCard): string | null => {
+    if (card.image_uris?.normal) return card.image_uris.normal
+    if (card.card_faces?.[0]?.image_uris?.normal) return card.card_faces[0].image_uris.normal
+    return null
+  }
+
+  const getCardThumb = (card: ScryfallCard): string | null => {
+    if (card.image_uris?.small) return card.image_uris.small
+    if (card.card_faces?.[0]?.image_uris?.small) return card.card_faces[0].image_uris.small
+    return null
   }
 
   return (
@@ -185,6 +236,27 @@ export function ZoneViewer({
             </div>
           )}
 
+          {/* Create Token */}
+          {onCreateToken && (
+            <Button
+              size="sm"
+              variant="outline"
+              className={cn(
+                "h-7 text-xs text-cyan-400 border-cyan-400/40",
+                showTokenSearch && "bg-cyan-400/10"
+              )}
+              onClick={() => {
+                setShowTokenSearch(!showTokenSearch)
+                if (showTokenSearch) {
+                  setTokenQuery('')
+                  setTokenResults([])
+                }
+              }}
+            >
+              <Plus className="w-3 h-3 mr-1" /> Token
+            </Button>
+          )}
+
           {/* Search */}
           <div className="relative ml-auto">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
@@ -223,8 +295,68 @@ export function ZoneViewer({
           </div>
         )}
 
+        {/* Token search panel */}
+        {showTokenSearch && onCreateToken && (
+          <div className="px-4 py-3 border-b border-white/10 bg-cyan-900/10">
+            <div className="flex items-center gap-2 mb-2">
+              <Search className="w-3 h-3 text-cyan-400" />
+              <Input
+                autoFocus
+                value={tokenQuery}
+                onChange={(e) => {
+                  setTokenQuery(e.target.value)
+                  searchTokens(e.target.value)
+                }}
+                placeholder="Search for tokens (e.g. Soldier, Treasure, Angel)..."
+                className="h-7 text-xs flex-1"
+              />
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 w-7 p-0"
+                onClick={() => {
+                  setShowTokenSearch(false)
+                  setTokenQuery('')
+                  setTokenResults([])
+                }}
+              >
+                <X className="w-3 h-3" />
+              </Button>
+            </div>
+            {tokenLoading && (
+              <div className="text-xs text-muted-foreground py-2">Searching...</div>
+            )}
+            {tokenResults.length > 0 && (
+              <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto custom-scrollbar">
+                {tokenResults.map((tc, i) => {
+                  const thumb = getCardThumb(tc)
+                  const img = getCardImage(tc)
+                  if (!thumb || !img) return null
+                  return (
+                    <div key={`${tc.name}-${i}`} className="flex flex-col items-center gap-1">
+                      <div className="w-16 h-22 rounded overflow-hidden border border-cyan-400/30">
+                        <img src={thumb} alt={tc.name} className="w-full h-full object-cover" />
+                      </div>
+                      <Button
+                        size="sm"
+                        className="h-5 px-2 text-[10px] bg-cyan-600 hover:bg-cyan-500"
+                        onClick={() => onCreateToken(tc.name, img)}
+                      >
+                        Create
+                      </Button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+            {!tokenLoading && tokenQuery && tokenResults.length === 0 && (
+              <div className="text-xs text-muted-foreground py-2">No tokens found</div>
+            )}
+          </div>
+        )}
+
         {/* Cards grid */}
-        <div 
+        <div
           ref={logRef}
           className="flex-1 overflow-y-auto p-4 custom-scrollbar"
         >
